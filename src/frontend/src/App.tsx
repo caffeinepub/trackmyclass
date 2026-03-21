@@ -1,9 +1,10 @@
+import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
+import { GraduationCap, Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import Layout from "./components/Layout";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import DashboardPage from "./pages/DashboardPage";
-import LoginPage from "./pages/LoginPage";
 import SettingsPage from "./pages/SettingsPage";
 import StudentDetailPage from "./pages/StudentDetailPage";
 import StudentsPage from "./pages/StudentsPage";
@@ -16,8 +17,40 @@ export interface AppNav {
   params: Record<string, string>;
 }
 
+function ProtectedMessage({
+  login,
+  isLoggingIn,
+}: { login: () => void; isLoggingIn: boolean }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center px-4">
+      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+        <Lock size={32} className="text-primary" />
+      </div>
+      <div className="space-y-2">
+        <h2 className="text-xl font-semibold text-foreground">
+          Login Required
+        </h2>
+        <p className="text-muted-foreground max-w-sm">
+          Please log in to access student records, dashboard analytics, and
+          settings.
+        </p>
+      </div>
+      <Button
+        onClick={login}
+        disabled={isLoggingIn}
+        className="gap-2"
+        data-ocid="protected.login.button"
+      >
+        <GraduationCap size={16} />
+        {isLoggingIn ? "Connecting…" : "Login to TrackMyClass"}
+      </Button>
+    </div>
+  );
+}
+
 export default function App() {
-  const { identity, isInitializing } = useInternetIdentity();
+  const { identity, isInitializing, login, isLoggingIn } =
+    useInternetIdentity();
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
   const [params, setParams] = useState<Record<string, string>>({});
 
@@ -41,18 +74,12 @@ export default function App() {
     );
   }
 
-  if (!identity) {
-    return (
-      <>
-        <LoginPage />
-        <Toaster />
-      </>
-    );
-  }
-
   const nav: AppNav = { currentPage, navigate, params };
 
   const renderPage = () => {
+    if (!identity) {
+      return <ProtectedMessage login={login} isLoggingIn={isLoggingIn} />;
+    }
     switch (currentPage) {
       case "students":
         return <StudentsPage nav={nav} />;

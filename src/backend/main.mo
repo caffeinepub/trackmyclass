@@ -4,14 +4,14 @@ import Float "mo:core/Float";
 import Nat "mo:core/Nat";
 import Principal "mo:core/Principal";
 import Storage "blob-storage/Storage";
-import Migration "migration";
+
 import Iter "mo:core/Iter";
 import Runtime "mo:core/Runtime";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
 import MixinStorage "blob-storage/Mixin";
 
-(with migration = Migration.run)
+
 actor {
   include MixinStorage();
 

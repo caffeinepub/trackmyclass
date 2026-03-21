@@ -9,6 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   GraduationCap,
   LayoutDashboard,
+  LogIn,
   LogOut,
   Menu,
   Settings,
@@ -25,7 +26,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ nav, children }: LayoutProps) {
-  const { clear, identity } = useInternetIdentity();
+  const { clear, identity, login, isLoggingIn } = useInternetIdentity();
   const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -53,7 +54,7 @@ export default function Layout({ nav, children }: LayoutProps) {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              className="md:hidden text-sidebar-foreground p-1"
+              className="md:hidden text-white p-1"
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label="Toggle menu"
             >
@@ -64,10 +65,10 @@ export default function Layout({ nav, children }: LayoutProps) {
                 <GraduationCap size={16} className="text-primary-foreground" />
               </div>
               <div className="hidden sm:block">
-                <span className="font-display font-semibold text-sidebar-foreground text-sm leading-tight block">
+                <span className="font-display font-semibold text-white text-sm leading-tight block">
                   TrackMyClass
                 </span>
-                <span className="text-xs text-sidebar-foreground/60 leading-tight block">
+                <span className="text-xs text-white/60 leading-tight block">
                   VKV Raga
                 </span>
               </div>
@@ -84,8 +85,8 @@ export default function Layout({ nav, children }: LayoutProps) {
                 onClick={() => nav.navigate(page)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                   nav.currentPage === page
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                    ? "bg-sidebar-accent text-white"
+                    : "text-white/70 hover:text-white hover:bg-sidebar-accent/50"
                 }`}
               >
                 <Icon size={15} />
@@ -94,28 +95,42 @@ export default function Layout({ nav, children }: LayoutProps) {
             ))}
           </nav>
 
+          {/* User area */}
           <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-sidebar-foreground hover:bg-sidebar-accent text-xs gap-1.5"
-                  data-ocid="nav.user.dropdown_menu"
-                >
-                  <GraduationCap size={14} />
-                  <span className="hidden sm:inline">{shortPrincipal}</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  data-ocid="nav.logout.button"
-                >
-                  <LogOut size={14} className="mr-2" /> Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {identity ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-sidebar-accent text-xs gap-1.5"
+                    data-ocid="nav.user.dropdown_menu"
+                  >
+                    <GraduationCap size={14} />
+                    <span className="hidden sm:inline">{shortPrincipal}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    data-ocid="nav.logout.button"
+                  >
+                    <LogOut size={14} className="mr-2" /> Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                size="sm"
+                onClick={login}
+                disabled={isLoggingIn}
+                className="gap-1.5 text-xs bg-white text-sidebar font-semibold hover:bg-white/90"
+                data-ocid="nav.login.button"
+              >
+                <LogIn size={14} />
+                {isLoggingIn ? "Connecting…" : "Login"}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -132,14 +147,29 @@ export default function Layout({ nav, children }: LayoutProps) {
                 }}
                 className={`flex items-center gap-2 px-3 py-2 rounded text-sm font-medium ${
                   nav.currentPage === page
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70"
+                    ? "bg-sidebar-accent text-white"
+                    : "text-white/70 hover:text-white hover:bg-sidebar-accent/50"
                 }`}
               >
                 <Icon size={15} />
                 {label}
               </button>
             ))}
+            {!identity && (
+              <button
+                type="button"
+                onClick={() => {
+                  login();
+                  setMobileOpen(false);
+                }}
+                disabled={isLoggingIn}
+                className="flex items-center gap-2 px-3 py-2 rounded text-sm font-medium text-white bg-white/20 hover:bg-white/30"
+                data-ocid="nav.mobile.login.button"
+              >
+                <LogIn size={15} />
+                {isLoggingIn ? "Connecting…" : "Login"}
+              </button>
+            )}
           </div>
         )}
       </header>

@@ -253,7 +253,14 @@ export default function StudentsPage({ nav }: Props) {
                 <Input
                   data-ocid="students.contact.input"
                   value={form.contact}
-                  onChange={(e) => set("contact", e.target.value)}
+                  onChange={(e) =>
+                    set(
+                      "contact",
+                      e.target.value.replace(/\D/g, "").slice(0, 10),
+                    )
+                  }
+                  maxLength={10}
+                  inputMode="numeric"
                 />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
@@ -269,7 +276,11 @@ export default function StudentsPage({ nav }: Props) {
                 <Input
                   data-ocid="students.pen.input"
                   value={form.pen}
-                  onChange={(e) => set("pen", e.target.value)}
+                  onChange={(e) =>
+                    set("pen", e.target.value.replace(/\D/g, "").slice(0, 11))
+                  }
+                  maxLength={11}
+                  inputMode="numeric"
                 />
               </div>
               <div className="space-y-1.5">
@@ -277,7 +288,14 @@ export default function StudentsPage({ nav }: Props) {
                 <Input
                   data-ocid="students.aadhar.input"
                   value={form.aadhar}
-                  onChange={(e) => set("aadhar", e.target.value)}
+                  onChange={(e) =>
+                    set(
+                      "aadhar",
+                      e.target.value.replace(/\D/g, "").slice(0, 12),
+                    )
+                  }
+                  maxLength={12}
+                  inputMode="numeric"
                 />
               </div>
             </div>

@@ -71,6 +71,24 @@ import {
 } from "../utils/gradeUtils";
 import { getSchoolSettings } from "./SettingsPage";
 
+// ─────────────────────────────────────────
+// Roman numeral helper
+// ─────────────────────────────────────────
+const toRoman = (n: number): string => {
+  const map: [number, string][] = [
+    [8, "VIII"],
+    [7, "VII"],
+    [6, "VI"],
+    [5, "V"],
+    [4, "IV"],
+    [3, "III"],
+    [2, "II"],
+    [1, "I"],
+  ];
+  for (const [val, str] of map) if (n >= val) return str;
+  return String(n);
+};
+
 interface Props {
   nav: AppNav;
   studentId: string;
@@ -248,7 +266,7 @@ function ProfileTab({
               <SelectContent>
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((c) => (
                   <SelectItem key={c} value={String(c)}>
-                    Class {c}
+                    Class {toRoman(c)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -335,7 +353,11 @@ function ProfileTab({
           <Input
             data-ocid="profile.contact.input"
             value={form.contact}
-            onChange={(e) => set("contact", e.target.value)}
+            onChange={(e) =>
+              set("contact", e.target.value.replace(/\D/g, "").slice(0, 10))
+            }
+            maxLength={10}
+            inputMode="numeric"
             disabled={!isAdmin}
           />
         </Field>
@@ -343,16 +365,24 @@ function ProfileTab({
           <Input
             data-ocid="profile.pen.input"
             value={form.pen}
-            onChange={(e) => set("pen", e.target.value)}
+            onChange={(e) =>
+              set("pen", e.target.value.replace(/\D/g, "").slice(0, 11))
+            }
             disabled={!isAdmin}
+            maxLength={11}
+            inputMode="numeric"
           />
         </Field>
         <Field label="Aadhar No.">
           <Input
             data-ocid="profile.aadhar.input"
             value={form.aadhar}
-            onChange={(e) => set("aadhar", e.target.value)}
+            onChange={(e) =>
+              set("aadhar", e.target.value.replace(/\D/g, "").slice(0, 12))
+            }
             disabled={!isAdmin}
+            maxLength={12}
+            inputMode="numeric"
           />
         </Field>
         <Field label="Address" className="sm:col-span-2 lg:col-span-3">
@@ -373,7 +403,7 @@ function ProfileTab({
             <Input
               data-ocid="profile.height_reopening.input"
               type="number"
-              value={form.heightReopening}
+              value={form.heightReopening || ""}
               onChange={(e) => set("heightReopening", Number(e.target.value))}
               disabled={!isAdmin}
             />
@@ -382,7 +412,7 @@ function ProfileTab({
             <Input
               data-ocid="profile.height_closure.input"
               type="number"
-              value={form.heightClosure}
+              value={form.heightClosure || ""}
               onChange={(e) => set("heightClosure", Number(e.target.value))}
               disabled={!isAdmin}
             />
@@ -391,7 +421,7 @@ function ProfileTab({
             <Input
               data-ocid="profile.weight_reopening.input"
               type="number"
-              value={form.weightReopening}
+              value={form.weightReopening || ""}
               onChange={(e) => set("weightReopening", Number(e.target.value))}
               disabled={!isAdmin}
             />
@@ -400,7 +430,7 @@ function ProfileTab({
             <Input
               data-ocid="profile.weight_closure.input"
               type="number"
-              value={form.weightClosure}
+              value={form.weightClosure || ""}
               onChange={(e) => set("weightClosure", Number(e.target.value))}
               disabled={!isAdmin}
             />
@@ -438,16 +468,16 @@ function calcLowerMarks(lm: LowerClassMarks): LowerClassMarks {
     lm.comprehensiveTest3 +
     lm.comprehensiveTest4;
   // Max = 8 * 50 = 400; convert to 100%
-  const pct = Math.round((total / 400) * 100 * 100) / 100;
+  const pct = Math.round((total / 400) * 100);
   return { ...lm, totalMarks: total, percentage: pct, grade: getGrade(pct) };
 }
 
 function calcUpperMarks(um: UpperClassMarks): UpperClassMarks {
-  const pt1w = Math.round(um.pt1 * 0.1 * 100) / 100;
-  const pt2w = Math.round(um.pt2 * 0.1 * 100) / 100;
-  const t1 = Math.round((pt1w + um.term1Exam + um.nb1 + um.se1) * 100) / 100;
-  const t2 = Math.round((pt2w + um.term2Exam + um.nb2 + um.se2) * 100) / 100;
-  const fp = Math.round(((t1 + t2) / 2) * 100) / 100;
+  const pt1w = Math.round(um.pt1 * 0.2);
+  const pt2w = Math.round(um.pt2 * 0.2);
+  const t1 = Math.round(pt1w + um.term1Exam + um.nb1 + um.se1);
+  const t2 = Math.round(pt2w + um.term2Exam + um.nb2 + um.se2);
+  const fp = Math.round((t1 + t2) / 2);
   return {
     ...um,
     pt1Weightage: pt1w,
@@ -581,7 +611,7 @@ function MarksTab({
               Written Tests &amp; Comprehensive Tests (50 marks each)
             </CardTitle>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="overflow-x-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -625,13 +655,9 @@ function MarksTab({
                             type="number"
                             min={0}
                             max={50}
-                            value={lm[field] as number}
+                            value={(lm[field] as number) || ""}
                             onChange={(e) =>
-                              updateLower(
-                                idx,
-                                field,
-                                Number(e.target.value) || 0,
-                              )
+                              updateLower(idx, field, Number(e.target.value))
                             }
                             className="w-14 h-7 text-sm"
                           />
@@ -640,7 +666,7 @@ function MarksTab({
                       <TableCell className="font-semibold">
                         {lm.totalMarks}
                       </TableCell>
-                      <TableCell>{lm.percentage.toFixed(1)}</TableCell>
+                      <TableCell>{Math.round(lm.percentage)}</TableCell>
                       <TableCell>
                         <GradeBadge grade={lm.grade} />
                       </TableCell>
@@ -656,21 +682,41 @@ function MarksTab({
           <CardHeader>
             <CardTitle className="text-sm">Term Marks Entry</CardTitle>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="overflow-x-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Subject</TableHead>
-                  <TableHead>PT1 /50</TableHead>
-                  <TableHead>PT2 /50</TableHead>
-                  <TableHead>Term1 /80</TableHead>
-                  <TableHead>NB1 /5</TableHead>
-                  <TableHead>SE1 /5</TableHead>
-                  <TableHead className="bg-accent">T1 Total /100</TableHead>
-                  <TableHead>Term2 /80</TableHead>
-                  <TableHead>NB2 /5</TableHead>
-                  <TableHead>SE2 /5</TableHead>
-                  <TableHead className="bg-accent">T2 Total /100</TableHead>
+                  <TableHead className="bg-blue-50 dark:bg-blue-950 text-xs">
+                    PT1 /50
+                  </TableHead>
+                  <TableHead className="bg-blue-50 dark:bg-blue-950 text-xs">
+                    NB1 /5
+                  </TableHead>
+                  <TableHead className="bg-blue-50 dark:bg-blue-950 text-xs">
+                    SE1 /5
+                  </TableHead>
+                  <TableHead className="bg-blue-50 dark:bg-blue-950 text-xs">
+                    Term1 /80
+                  </TableHead>
+                  <TableHead className="bg-blue-100 dark:bg-blue-900 font-bold">
+                    T1 Total
+                  </TableHead>
+                  <TableHead className="bg-orange-50 dark:bg-orange-950 text-xs">
+                    PT2 /50
+                  </TableHead>
+                  <TableHead className="bg-orange-50 dark:bg-orange-950 text-xs">
+                    NB2 /5
+                  </TableHead>
+                  <TableHead className="bg-orange-50 dark:bg-orange-950 text-xs">
+                    SE2 /5
+                  </TableHead>
+                  <TableHead className="bg-orange-50 dark:bg-orange-950 text-xs">
+                    Term2 /80
+                  </TableHead>
+                  <TableHead className="bg-orange-100 dark:bg-orange-900 font-bold">
+                    T2 Total
+                  </TableHead>
                   <TableHead className="bg-primary/10">Final %</TableHead>
                   <TableHead>Grade</TableHead>
                 </TableRow>
@@ -679,15 +725,18 @@ function MarksTab({
                 {marks.map((m, idx) => {
                   if (m.__kind__ !== "upperClass") return null;
                   const um = m.upperClass;
-                  const inputFields: (keyof UpperClassMarks)[] = [
+                  // Term1 group: PT1, NB1, SE1, Term1Exam | Term2 group: PT2, NB2, SE2, Term2Exam
+                  const term1Fields: (keyof UpperClassMarks)[] = [
                     "pt1",
-                    "pt2",
-                    "term1Exam",
                     "nb1",
                     "se1",
-                    "term2Exam",
+                    "term1Exam",
+                  ];
+                  const term2Fields: (keyof UpperClassMarks)[] = [
+                    "pt2",
                     "nb2",
                     "se2",
+                    "term2Exam",
                   ];
                   const maxVals: Record<string, number> = {
                     pt1: 50,
@@ -704,39 +753,48 @@ function MarksTab({
                       <TableCell className="font-medium">
                         {um.subjectName}
                       </TableCell>
-                      {inputFields.map((field, fi) => (
-                        <>
-                          {fi === 5 && (
-                            <TableCell
-                              key="t1-total"
-                              className="bg-accent font-semibold text-sm"
-                            >
-                              {um.term1Total.toFixed(1)}
-                            </TableCell>
-                          )}
-                          <TableCell key={field} className="p-1">
-                            <Input
-                              type="number"
-                              min={0}
-                              max={maxVals[field]}
-                              value={um[field] as number}
-                              onChange={(e) =>
-                                updateUpper(
-                                  idx,
-                                  field,
-                                  Number(e.target.value) || 0,
-                                )
-                              }
-                              className="w-14 h-7 text-sm"
-                            />
-                          </TableCell>
-                        </>
+                      {term1Fields.map((field) => (
+                        <TableCell
+                          key={field}
+                          className="p-1 bg-blue-50/50 dark:bg-blue-950/30"
+                        >
+                          <Input
+                            type="number"
+                            min={0}
+                            max={maxVals[field]}
+                            value={(um[field] as number) || ""}
+                            onChange={(e) =>
+                              updateUpper(idx, field, Number(e.target.value))
+                            }
+                            className="w-14 h-7 text-sm"
+                          />
+                        </TableCell>
                       ))}
-                      <TableCell className="bg-accent font-semibold text-sm">
-                        {um.term2Total.toFixed(1)}
+                      <TableCell className="bg-blue-100 dark:bg-blue-900 font-semibold text-sm">
+                        {Math.round(um.term1Total)}
+                      </TableCell>
+                      {term2Fields.map((field) => (
+                        <TableCell
+                          key={field}
+                          className="p-1 bg-orange-50/50 dark:bg-orange-950/30"
+                        >
+                          <Input
+                            type="number"
+                            min={0}
+                            max={maxVals[field]}
+                            value={(um[field] as number) || ""}
+                            onChange={(e) =>
+                              updateUpper(idx, field, Number(e.target.value))
+                            }
+                            className="w-14 h-7 text-sm"
+                          />
+                        </TableCell>
+                      ))}
+                      <TableCell className="bg-orange-100 dark:bg-orange-900 font-semibold text-sm">
+                        {Math.round(um.term2Total)}
                       </TableCell>
                       <TableCell className="bg-primary/10 font-bold">
-                        {um.finalPercentage.toFixed(1)}
+                        {Math.round(um.finalPercentage)}
                       </TableCell>
                       <TableCell>
                         <GradeBadge grade={um.grade} />
@@ -1536,6 +1594,28 @@ function ReportCardTab({
     if (cards && cards.length > 0) setForm(cards[cards.length - 1]);
   }, [cards]);
 
+  // Auto-calculate overall % from marks data
+  useEffect(() => {
+    if (!marksData || marksData.length === 0) return;
+    const isLower = isLowerClass(Number(profile.classLevel));
+    const pcts: number[] = [];
+    for (const sm of marksData) {
+      if (isLower && sm.__kind__ === "lowerClass") {
+        pcts.push(Number(sm.lowerClass.percentage));
+      } else if (!isLower && sm.__kind__ === "upperClass") {
+        pcts.push(Number(sm.upperClass.finalPercentage));
+      }
+    }
+    if (pcts.length > 0) {
+      const avg = Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length);
+      setForm((prev) => ({
+        ...prev,
+        finalPercentage: avg,
+        grade: getGrade(avg),
+      }));
+    }
+  }, [marksData, profile.classLevel]);
+
   useEffect(() => {
     if (!actor || !profile.studentId) return;
     actor
@@ -1545,14 +1625,7 @@ function ReportCardTab({
       })
       .catch(() => {});
 
-    actor
-      .getStudyMaterial("school-logo")
-      .then((m) => {
-        if (m) {
-          // store in settings
-        }
-      })
-      .catch(() => {});
+    // logos are stored in settings via SettingsPage uploads
   }, [actor, profile.studentId]);
 
   const set = (field: keyof ReportCard, val: string | number) => {
@@ -1587,9 +1660,12 @@ function ReportCardTab({
     if (!el) return;
     const w = window.open("", "_blank");
     if (!w) return;
-    const logoHtml = settings.logoUrl
-      ? `<img src="${settings.logoUrl}" style="width:60px;height:60px;object-fit:contain;" />`
-      : `<div style="width:60px;height:60px;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:9px;text-align:center;">School Logo</div>`;
+    const logoLeftHtml = settings.logoLeftUrl
+      ? `<img src="${settings.logoLeftUrl}" style="width:60px;height:60px;object-fit:contain;" />`
+      : `<div style="width:60px;height:60px;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:9px;text-align:center;">Left Logo</div>`;
+    const logoRightHtml = settings.logoRightUrl
+      ? `<img src="${settings.logoRightUrl}" style="width:60px;height:60px;object-fit:contain;" />`
+      : `<div style="width:60px;height:60px;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:9px;text-align:center;">Right Logo</div>`;
     const photoHtml = photoUrl
       ? `<img src="${photoUrl}" style="width:70px;height:80px;object-fit:cover;border:1px solid #ccc;" />`
       : `<div style="width:70px;height:80px;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:9px;text-align:center;">Photo</div>`;
@@ -1618,12 +1694,12 @@ th{background:#e8e8e8;font-weight:bold;text-align:center;}
 .footer-date{margin-top:10px;font-size:11px;}
 </style></head><body>
 <div class="header">
-  ${logoHtml}
+  ${logoLeftHtml}
   <div class="header-center">
     <div class="school-name">${settings.schoolName}</div>
     <div class="school-sub">Dist- ${settings.district}, ${settings.state}</div>
   </div>
-  ${logoHtml}
+  ${logoRightHtml}
 </div>
 <div class="report-title">Annual Report Card (${form.session})</div>
 
@@ -1631,7 +1707,7 @@ th{background:#e8e8e8;font-weight:bold;text-align:center;}
   <div class="student-fields">
     <table class="info-table">
       <tr><td><strong>Name:</strong> ${profile.name}</td><td><strong>Admission No:</strong> ${profile.studentId}</td></tr>
-      <tr><td><strong>Roll No:</strong> ${profile.rollNo}</td><td><strong>Class:</strong> ${String(profile.classLevel)}${profile.section ? ` \u2013 ${profile.section}` : ""}</td></tr>
+      <tr><td><strong>Roll No:</strong> ${profile.rollNo}</td><td><strong>Class:</strong> ${toRoman(Number(profile.classLevel))}${profile.section ? ` \u2013 ${profile.section}` : ""}</td></tr>
       <tr><td><strong>Date of Birth:</strong> ${profile.dateOfBirth}</td><td><strong>Gender:</strong> ${profile.gender}</td></tr>
       <tr><td><strong>Father's Name:</strong> ${profile.fatherName}</td><td><strong>Mother's Name:</strong> ${profile.motherName}</td></tr>
       <tr><td colspan="2"><strong>Address:</strong> ${profile.address}</td></tr>
@@ -1651,18 +1727,18 @@ ${
     .filter((m) => m.__kind__ === "lowerClass")
     .map((m) => {
       const lm = m.lowerClass;
-      return `<tr><td>${lm.subjectName}</td><td>${lm.writtenTest1}</td><td>${lm.writtenTest2}</td><td>${lm.writtenTest3}</td><td>${lm.writtenTest4}</td><td>${lm.comprehensiveTest1}</td><td>${lm.comprehensiveTest2}</td><td>${lm.comprehensiveTest3}</td><td>${lm.comprehensiveTest4}</td><td>${lm.totalMarks}</td><td>${lm.percentage.toFixed(1)}</td><td>${lm.grade}</td></tr>`;
+      return `<tr><td>${lm.subjectName}</td><td>${lm.writtenTest1}</td><td>${lm.writtenTest2}</td><td>${lm.writtenTest3}</td><td>${lm.writtenTest4}</td><td>${lm.comprehensiveTest1}</td><td>${lm.comprehensiveTest2}</td><td>${lm.comprehensiveTest3}</td><td>${lm.comprehensiveTest4}</td><td>${lm.totalMarks}</td><td>${Math.round(lm.percentage)}</td><td>${lm.grade}</td></tr>`;
     })
     .join("")}
 </table>`
     : `
 <table>
-  <tr><th>Subject</th><th>PT1/50</th><th>PT2/50</th><th>Term I/80</th><th>NB1/5</th><th>SE1/5</th><th>T1 Total</th><th>Term II/80</th><th>NB2/5</th><th>SE2/5</th><th>T2 Total</th><th>Final %</th><th>Grade</th></tr>
+  <tr style='background:#dbeafe'><th>Subject</th><th>PT1/50</th><th>NB1/5</th><th>SE1/5</th><th>Term I/80</th><th style='background:#bfdbfe'>T1 Total</th><th style='background:#fed7aa'>PT2/50</th><th style='background:#fed7aa'>NB2/5</th><th style='background:#fed7aa'>SE2/5</th><th style='background:#fed7aa'>Term II/80</th><th style='background:#fdba74'>T2 Total</th><th>Final %</th><th>Grade</th></tr>
   ${(marksData ?? [])
     .filter((m) => m.__kind__ === "upperClass")
     .map((m) => {
       const um = m.upperClass;
-      return `<tr><td>${um.subjectName}</td><td>${um.pt1}</td><td>${um.pt2}</td><td>${um.term1Exam}</td><td>${um.nb1}</td><td>${um.se1}</td><td>${um.term1Total.toFixed(1)}</td><td>${um.term2Exam}</td><td>${um.nb2}</td><td>${um.se2}</td><td>${um.term2Total.toFixed(1)}</td><td>${um.finalPercentage.toFixed(1)}</td><td>${um.grade}</td></tr>`;
+      return `<tr><td>${um.subjectName}</td><td>${um.pt1}</td><td>${um.nb1}</td><td>${um.se1}</td><td>${um.term1Exam}</td><td style='background:#dbeafe;font-weight:bold'>${Math.round(um.term1Total)}</td><td style='background:#fff7ed'>${um.pt2}</td><td style='background:#fff7ed'>${um.nb2}</td><td style='background:#fff7ed'>${um.se2}</td><td style='background:#fff7ed'>${um.term2Exam}</td><td style='background:#fed7aa;font-weight:bold'>${Math.round(um.term2Total)}</td><td>${Math.round(um.finalPercentage)}</td><td>${um.grade}</td></tr>`;
     })
     .join("")}
 </table>`
@@ -1670,7 +1746,7 @@ ${
 
 <div class="result-row">
   <span><strong>RESULT:</strong> ${form.finalPercentage >= 33 ? "PASS" : "FAIL"}</span>
-  <span><strong>Overall %:</strong> ${form.finalPercentage.toFixed(1)}%</span>
+  <span><strong>Overall %:</strong> ${Math.round(form.finalPercentage)}%</span>
   <span><strong>Grade:</strong> ${form.grade}</span>
   <span><strong>Rank:</strong> ${form.rank || "—"}</span>
 </div>
@@ -1684,8 +1760,8 @@ ${
 <div class="section-title">Health Record</div>
 <table>
   <tr><th></th><th>Height (cm)</th><th>Weight (kg)</th></tr>
-  <tr><td>Re-opening</td><td>${profile.heightReopening}</td><td>${profile.weightReopening}</td></tr>
-  <tr><td>Closure</td><td>${profile.heightClosure}</td><td>${profile.weightClosure}</td></tr>
+  <tr><td>Re-opening</td><td>${profile.heightReopening || ""}</td><td>${profile.weightReopening || ""}</td></tr>
+  <tr><td>Closure</td><td>${profile.heightClosure || ""}</td><td>${profile.weightClosure || ""}</td></tr>
 </table>
 
 ${
@@ -1904,7 +1980,9 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
         <div>
           <h1 className="font-display font-bold text-xl">{profile.name}</h1>
           <div className="flex items-center gap-2 flex-wrap mt-1">
-            <Badge variant="outline">Class {String(profile.classLevel)}</Badge>
+            <Badge variant="outline">
+              Class {toRoman(Number(profile.classLevel))}
+            </Badge>
             {profile.section && (
               <Badge variant="outline">Section {profile.section}</Badge>
             )}

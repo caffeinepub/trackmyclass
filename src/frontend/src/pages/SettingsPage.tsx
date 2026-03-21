@@ -2,12 +2,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, Upload } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, Loader2, Save, ShieldAlert, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AppNav } from "../App";
 import { ExternalBlob } from "../backend";
+import { UserRole } from "../backend.d";
 import { useActor } from "../hooks/useActor";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useIsAdmin } from "../hooks/useQueries";
 
 const SETTINGS_KEY = "vkv_school_settings";
@@ -18,13 +21,22 @@ export interface SchoolSettings {
   state: string;
   principalName: string;
   academicYear: string;
+  /** @deprecated use logoLeftUrl */
   logoUrl: string;
+  logoLeftUrl: string;
+  logoRightUrl: string;
 }
 
 export function getSchoolSettings(): SchoolSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return JSON.parse(raw) as SchoolSettings;
+    if (raw) {
+      const parsed = JSON.parse(raw) as SchoolSettings;
+      if (!parsed.logoLeftUrl && parsed.logoUrl)
+        parsed.logoLeftUrl = parsed.logoUrl;
+      if (!parsed.logoRightUrl) parsed.logoRightUrl = "";
+      return parsed;
+    }
   } catch {
     // ignore
   }
@@ -35,6 +47,8 @@ export function getSchoolSettings(): SchoolSettings {
     principalName: "",
     academicYear: "2025-26",
     logoUrl: "",
+    logoLeftUrl: "",
+    logoRightUrl: "",
   };
 }
 
@@ -46,13 +60,133 @@ interface Props {
   nav: AppNav;
 }
 
+function AdminSetupCard() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  const queryClient = useQueryClient();
+  const { refetch: refetchIsAdmin } = useIsAdmin();
+  const [claimingAdmin, setClaimingAdmin] = useState(false);
+
+  const { data: callerRole, isLoading: roleLoading } = useQuery<UserRole>({
+    queryKey: ["callerRole"],
+    queryFn: async () => {
+      if (!actor) return UserRole.user;
+      return actor.getCallerUserRole();
+    },
+    enabled: !!actor && !isFetching,
+  });
+
+  if (!identity) {
+    return (
+      <Card className="border-blue-500/40 bg-blue-50/50 dark:bg-blue-950/20">
+        <CardContent className="flex items-center gap-3 py-4">
+          <ShieldAlert size={18} className="text-blue-600" />
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            Please log in to manage admin access and add students.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (roleLoading) {
+    return (
+      <Card>
+        <CardContent
+          className="flex items-center gap-3 py-4"
+          data-ocid="settings.admin_setup.loading_state"
+        >
+          <Loader2 size={16} className="animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
+            Checking admin access…
+          </span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (callerRole === UserRole.admin) {
+    return (
+      <Card className="border-green-500/40 bg-green-50/50 dark:bg-green-950/20">
+        <CardContent className="flex items-center gap-3 py-4">
+          <CheckCircle2 size={18} className="text-green-600" />
+          <div>
+            <p className="text-sm font-semibold text-green-700 dark:text-green-400">
+              Admin Access: Active
+            </p>
+            <p className="text-xs text-green-600/80 dark:text-green-500/80">
+              You have full admin privileges. You can add and manage student
+              records.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const handleClaimAdmin = async () => {
+    if (!actor || !identity) {
+      toast.error("Please log in first before claiming admin access.");
+      return;
+    }
+    setClaimingAdmin(true);
+    try {
+      await actor.assignCallerUserRole(identity.getPrincipal(), UserRole.admin);
+      await queryClient.invalidateQueries({ queryKey: ["callerRole"] });
+      await queryClient.invalidateQueries({ queryKey: ["isAdmin"] });
+      await refetchIsAdmin();
+      toast.success("Admin access granted. You can now add students.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to claim admin access. Try logging in again.");
+    } finally {
+      setClaimingAdmin(false);
+    }
+  };
+
+  return (
+    <Card
+      className="border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20"
+      data-ocid="settings.admin_setup.card"
+    >
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base text-amber-700 dark:text-amber-400">
+          <ShieldAlert size={18} />
+          Admin Access Required
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-amber-700/90 dark:text-amber-300/80">
+          You are currently logged in as a regular user. To add students and
+          manage records, you need admin access.
+        </p>
+        <Button
+          onClick={handleClaimAdmin}
+          disabled={claimingAdmin}
+          className="bg-amber-600 hover:bg-amber-700 text-white"
+          data-ocid="settings.claim_admin.button"
+        >
+          {claimingAdmin ? (
+            <Loader2 size={14} className="mr-2 animate-spin" />
+          ) : (
+            <ShieldAlert size={14} className="mr-2" />
+          )}
+          {claimingAdmin ? "Claiming Access…" : "Claim Admin Access"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsPage({ nav: _nav }: Props) {
   const { actor } = useActor();
   const { data: isAdmin } = useIsAdmin();
   const [settings, setSettings] = useState<SchoolSettings>(getSchoolSettings());
-  const [uploading, setUploading] = useState(false);
+  const [uploadingLeft, setUploadingLeft] = useState(false);
+  const [uploadingRight, setUploadingRight] = useState(false);
   const [saving, setSaving] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileLeftRef = useRef<HTMLInputElement>(null);
+  const fileRightRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSettings(getSchoolSettings());
@@ -61,29 +195,39 @@ export default function SettingsPage({ nav: _nav }: Props) {
   const set = (field: keyof SchoolSettings, val: string) =>
     setSettings((prev) => ({ ...prev, [field]: val }));
 
-  const handleLogoUpload = async (file: File) => {
+  const handleLogoUpload = async (file: File, side: "left" | "right") => {
     if (!actor) return;
-    setUploading(true);
+    const key = side === "left" ? "school-logo-left" : "school-logo-right";
+    if (side === "left") setUploadingLeft(true);
+    else setUploadingRight(true);
     try {
       const buffer = await file.arrayBuffer();
       const bytes = new Uint8Array(buffer);
       const blob = ExternalBlob.fromBytes(bytes);
       await actor.uploadStudyMaterial(
-        "school-logo",
-        "School Logo",
+        key,
+        side === "left" ? "School Logo Left" : "School Logo Right",
         blob,
-        "School logo image",
+        `School logo ${side} side`,
       );
-      const material = await actor.getStudyMaterial("school-logo");
+      const material = await actor.getStudyMaterial(key);
       if (material) {
         const url = material.blob.getDirectURL();
-        set("logoUrl", url);
-        toast.success("Logo uploaded successfully");
+        if (side === "left") {
+          set("logoLeftUrl", url);
+          set("logoUrl", url);
+        } else {
+          set("logoRightUrl", url);
+        }
+        toast.success(
+          `${side === "left" ? "Left" : "Right"} logo uploaded successfully`,
+        );
       }
     } catch {
       toast.error("Failed to upload logo");
     } finally {
-      setUploading(false);
+      if (side === "left") setUploadingLeft(false);
+      else setUploadingRight(false);
     }
   };
 
@@ -106,6 +250,9 @@ export default function SettingsPage({ nav: _nav }: Props) {
       </div>
 
       <div className="grid gap-6 max-w-2xl">
+        {/* Admin Setup Section */}
+        <AdminSetupCard />
+
         {/* School Info */}
         <Card>
           <CardHeader>
@@ -159,46 +306,94 @@ export default function SettingsPage({ nav: _nav }: Props) {
           </CardContent>
         </Card>
 
-        {/* School Logo */}
+        {/* School Logos */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">School Logo</CardTitle>
+            <CardTitle className="text-base">School Logos</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {settings.logoUrl && (
-              <img
-                src={settings.logoUrl}
-                alt="School Logo"
-                className="w-24 h-24 object-contain border rounded"
-              />
-            )}
-            <div className="flex items-center gap-3">
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleLogoUpload(file);
-                }}
-              />
-              <Button
-                variant="outline"
-                disabled={uploading || !isAdmin}
-                onClick={() => fileRef.current?.click()}
-                data-ocid="settings.logo.upload_button"
-              >
-                {uploading ? (
-                  <Loader2 size={14} className="mr-2 animate-spin" />
-                ) : (
-                  <Upload size={14} className="mr-2" />
-                )}
-                {uploading ? "Uploading…" : "Upload Logo"}
-              </Button>
-              {!isAdmin && (
-                <p className="text-xs text-muted-foreground">Admin only</p>
+          <CardContent className="space-y-6">
+            {/* Left Logo */}
+            <div className="space-y-3">
+              <Label className="font-semibold">
+                Left Side Logo (Report Card Header)
+              </Label>
+              {settings.logoLeftUrl && (
+                <img
+                  src={settings.logoLeftUrl}
+                  alt="School Logo Left"
+                  className="w-24 h-24 object-contain border rounded"
+                />
               )}
+              <div className="flex items-center gap-3">
+                <input
+                  ref={fileLeftRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleLogoUpload(file, "left");
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  disabled={uploadingLeft || !isAdmin}
+                  onClick={() => fileLeftRef.current?.click()}
+                  data-ocid="settings.logo_left.upload_button"
+                >
+                  {uploadingLeft ? (
+                    <Loader2 size={14} className="mr-2 animate-spin" />
+                  ) : (
+                    <Upload size={14} className="mr-2" />
+                  )}
+                  {uploadingLeft ? "Uploading…" : "Upload Left Logo"}
+                </Button>
+                {!isAdmin && (
+                  <p className="text-xs text-muted-foreground">Admin only</p>
+                )}
+              </div>
+            </div>
+
+            {/* Right Logo */}
+            <div className="space-y-3">
+              <Label className="font-semibold">
+                Right Side Logo (Report Card Header)
+              </Label>
+              {settings.logoRightUrl && (
+                <img
+                  src={settings.logoRightUrl}
+                  alt="School Logo Right"
+                  className="w-24 h-24 object-contain border rounded"
+                />
+              )}
+              <div className="flex items-center gap-3">
+                <input
+                  ref={fileRightRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleLogoUpload(file, "right");
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  disabled={uploadingRight || !isAdmin}
+                  onClick={() => fileRightRef.current?.click()}
+                  data-ocid="settings.logo_right.upload_button"
+                >
+                  {uploadingRight ? (
+                    <Loader2 size={14} className="mr-2 animate-spin" />
+                  ) : (
+                    <Upload size={14} className="mr-2" />
+                  )}
+                  {uploadingRight ? "Uploading…" : "Upload Right Logo"}
+                </Button>
+                {!isAdmin && (
+                  <p className="text-xs text-muted-foreground">Admin only</p>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
