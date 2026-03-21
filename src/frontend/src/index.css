@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("/assets/fonts/Satoshi-Variable.woff2") format("woff2");
+  font-weight: 300 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "BricolageGrotesque";
+  src: url("/assets/fonts/BricolageGrotesque-Variable.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+    /* bg #EEF2F4 */
+    --background: 0.94 0.008 215;
+    --foreground: 0.2 0.03 240;
+    /* card white */
+    --card: 1 0 0;
+    --card-foreground: 0.2 0.03 240;
+    --popover: 1 0 0;
+    --popover-foreground: 0.2 0.03 240;
+    /* teal #1F6F7A */
+    --primary: 0.48 0.08 200;
+    --primary-foreground: 1 0 0;
+    /* light secondary */
+    --secondary: 0.94 0.008 215;
+    --secondary-foreground: 0.2 0.03 240;
+    --muted: 0.96 0.005 215;
+    --muted-foreground: 0.52 0.02 240;
+    --accent: 0.92 0.015 200;
+    --accent-foreground: 0.35 0.06 200;
+    /* red #EF4444 */
+    --destructive: 0.63 0.22 25;
+    --destructive-foreground: 1 0 0;
+    --border: 0.88 0.01 215;
+    --input: 0.88 0.01 215;
+    --ring: 0.48 0.08 200;
+    /* success green #22C55E */
+    --success: 0.72 0.19 145;
+    --success-foreground: 1 0 0;
+    /* warning amber #F59E0B */
+    --warning: 0.75 0.15 75;
+    --warning-foreground: 0.15 0.02 50;
+    /* chart colors */
+    --chart-1: 0.48 0.08 200;
+    --chart-2: 0.72 0.19 145;
+    --chart-3: 0.75 0.15 75;
+    --chart-4: 0.63 0.22 25;
+    --chart-5: 0.6 0.12 270;
+    /* nav dark navy #0F1B2A */
+    --sidebar: 0.17 0.04 242;
+    --sidebar-foreground: 0.92 0.01 215;
+    --sidebar-primary: 0.48 0.08 200;
+    --sidebar-primary-foreground: 1 0 0;
+    --sidebar-accent: 0.22 0.05 242;
+    --sidebar-accent-foreground: 0.92 0.01 215;
+    --sidebar-border: 0.22 0.04 242;
+    --sidebar-ring: 0.48 0.08 200;
+    /* header #F7F9FB */
+    --header: 0.97 0.005 215;
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: "Satoshi", "Inter", system-ui, sans-serif;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: "BricolageGrotesque", "Satoshi", system-ui, sans-serif;
+  }
+}
