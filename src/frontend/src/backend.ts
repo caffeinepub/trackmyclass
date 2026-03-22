@@ -273,6 +273,9 @@ export interface backendInterface {
     deleteClassStudyMaterial(sessionToken: string, id: string): Promise<void>;
     deleteNotice(sessionToken: string, id: string): Promise<void>;
     deleteStudentProfileWithSession(sessionToken: string, studentId: StudentId): Promise<void>;
+    archiveStudentProfileWithSession(sessionToken: string, studentId: StudentId): Promise<void>;
+    restoreStudentProfileWithSession(sessionToken: string, studentId: StudentId): Promise<void>;
+    listArchivedStudentProfilesWithSession(sessionToken: string): Promise<Array<StudentProfile>>;
     deleteUserAccount(sessionToken: string, username: string): Promise<void>;
     getActivityRecords(studentId: StudentId): Promise<Array<ActivityRecord>>;
     getActivityRecordsWithSession(sessionToken: string, studentId: StudentId): Promise<Array<ActivityRecord>>;
@@ -531,6 +534,48 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteStudentProfileWithSession(arg0, arg1);
+            return result;
+        }
+    }
+    async archiveStudentProfileWithSession(arg0: string, arg1: StudentId): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.archiveStudentProfileWithSession(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.archiveStudentProfileWithSession(arg0, arg1);
+            return result;
+        }
+    }
+    async restoreStudentProfileWithSession(arg0: string, arg1: StudentId): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.restoreStudentProfileWithSession(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.restoreStudentProfileWithSession(arg0, arg1);
+            return result;
+        }
+    }
+    async listArchivedStudentProfilesWithSession(arg0: string): Promise<Array<StudentProfile>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.listArchivedStudentProfilesWithSession(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.listArchivedStudentProfilesWithSession(arg0);
             return result;
         }
     }

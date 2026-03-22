@@ -209,6 +209,7 @@ actor {
   let noticePosts = Map.empty<Text, NoticePost>();
   let circulars = Map.empty<Text, Circular>();
   let classStudyMaterials = Map.empty<Text, ClassStudyMaterial>();
+  let archivedStudents = Map.empty<StudentId, Bool>();
 
   // Initialize developer account
   let developerAccount : SessionAccount = {
@@ -367,15 +368,55 @@ actor {
     };
   };
 
+  // Archive a student (soft delete)
+  public func archiveStudentProfileWithSession(sessionToken : Text, studentId : StudentId) : async () {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        if (not isAdminOrDeveloper(sessionInfo)) { Runtime.trap("Unauthorized: Only developers and admins can archive student profiles") };
+        switch (studentProfiles.get(studentId)) {
+          case (null) { Runtime.trap("Student profile does not exist") };
+          case (?profile) {
+            archivedStudents.add(studentId, true);
+          };
+        };
+      };
+    };
+  };
+
+  // Restore an archived student
+  public func restoreStudentProfileWithSession(sessionToken : Text, studentId : StudentId) : async () {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        if (not isAdminOrDeveloper(sessionInfo)) { Runtime.trap("Unauthorized: Only developers and admins can restore student profiles") };
+        switch (studentProfiles.get(studentId)) {
+          case (null) { Runtime.trap("Student profile does not exist") };
+          case (?profile) {
+            archivedStudents.remove(studentId);
+          };
+        };
+      };
+    };
+  };
+
+  // List archived students
+  public query func listArchivedStudentProfilesWithSession(sessionToken : Text) : async [StudentProfile] {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        if (not isAdminOrDeveloper(sessionInfo)) { Runtime.trap("Unauthorized: Only developers and admins can view archived students") };
+        studentProfiles.values().toArray().filter(func(p) { archivedStudents.containsKey(p.studentId) });
+      };
+    };
+  };
+
+  // Permanent delete (only for archived students)
   public func deleteStudentProfileWithSession(sessionToken : Text, studentId : StudentId) : async () {
     switch (getSessionInfo(sessionToken)) {
       case (null) { Runtime.trap("Unauthorized: Invalid session token") };
       case (?sessionInfo) {
-        switch (sessionInfo.role) {
-          case ("developer") {};
-          case ("admin") {};
-          case (_) { Runtime.trap("Unauthorized: Only developers and admins can delete student profiles") };
-        };
+        if (not isAdminOrDeveloper(sessionInfo)) { Runtime.trap("Unauthorized: Only developers and admins can delete student profiles") };
         if (not studentProfiles.containsKey(studentId)) { Runtime.trap("Student profile does not exist") };
         studentProfiles.remove(studentId);
         subjectMarks.remove(studentId);
@@ -397,19 +438,20 @@ actor {
     };
   };
 
+  // List active (non-archived) students
   public query func listAllStudentProfilesWithSession(sessionToken : Text) : async [StudentProfile] {
     switch (getSessionInfo(sessionToken)) {
       case (null) { Runtime.trap("Unauthorized: Invalid session token") };
       case (?sessionInfo) {
-        let allProfiles = studentProfiles.values().toArray();
+        let activeProfiles = studentProfiles.values().toArray().filter(func(p) { not archivedStudents.containsKey(p.studentId) });
         switch (sessionInfo.role) {
           case ("classTeacher") {
             switch (sessionInfo.assignedClass) {
               case (null) { [] };
-              case (?assignedClass) { allProfiles.filter(func(p) { p.classLevel == assignedClass }) };
+              case (?assignedClass) { activeProfiles.filter(func(p) { p.classLevel == assignedClass }) };
             };
           };
-          case (_) { allProfiles };
+          case (_) { activeProfiles };
         };
       };
     };
@@ -435,7 +477,7 @@ actor {
       case (null) { Runtime.trap("Unauthorized: Invalid session token") };
       case (?sessionInfo) {
         let allProfiles = studentProfiles.values().toArray().filter(
-          func(profile) { profile.name.contains(#text searchTerm) or profile.studentId.contains(#text searchTerm) }
+          func(profile) { not archivedStudents.containsKey(profile.studentId) and (profile.name.contains(#text searchTerm) or profile.studentId.contains(#text searchTerm)) }
         );
         switch (sessionInfo.role) {
           case ("classTeacher") {
@@ -454,7 +496,7 @@ actor {
     switch (getSessionInfo(sessionToken)) {
       case (null) { Runtime.trap("Unauthorized: Invalid session token") };
       case (?sessionInfo) {
-        let classProfiles = studentProfiles.values().toArray().filter(func(profile) { profile.classLevel == classLevel });
+        let classProfiles = studentProfiles.values().toArray().filter(func(profile) { not archivedStudents.containsKey(profile.studentId) and profile.classLevel == classLevel });
         switch (sessionInfo.role) {
           case ("classTeacher") {
             switch (sessionInfo.assignedClass) {

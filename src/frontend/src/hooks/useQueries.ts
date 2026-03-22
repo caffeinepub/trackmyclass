@@ -24,7 +24,23 @@ export function useAllStudents(sessionToken: string) {
     queryKey: ["allStudents", sessionToken],
     queryFn: async () => {
       if (!actor || !sessionToken) return [];
-      return actor.listAllStudentProfilesWithSession(sessionToken);
+      const result =
+        await actor.listAllStudentProfilesWithSession(sessionToken);
+      return result as unknown as StudentProfile[];
+    },
+    enabled: !!actor && !isFetching && !!sessionToken,
+  });
+}
+
+export function useArchivedStudents(sessionToken: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery<StudentProfile[]>({
+    queryKey: ["archivedStudents", sessionToken],
+    queryFn: async () => {
+      if (!actor || !sessionToken) return [];
+      const result =
+        await actor.listArchivedStudentProfilesWithSession(sessionToken);
+      return result as unknown as StudentProfile[];
     },
     enabled: !!actor && !isFetching && !!sessionToken,
   });
@@ -36,7 +52,11 @@ export function useStudentProfile(sessionToken: string, studentId: string) {
     queryKey: ["studentProfile", sessionToken, studentId],
     queryFn: async () => {
       if (!actor || !studentId || !sessionToken) return null;
-      return actor.getStudentProfileWithSession(sessionToken, studentId);
+      const result = await actor.getStudentProfileWithSession(
+        sessionToken,
+        studentId,
+      );
+      return result as unknown as StudentProfile;
     },
     enabled: !!actor && !isFetching && !!studentId && !!sessionToken,
   });
@@ -120,7 +140,7 @@ export function useSaveStudentProfile(sessionToken: string) {
   return useMutation({
     mutationFn: async (profile: StudentProfile) => {
       if (!actor) throw new Error("Not connected");
-      await actor.saveStudentProfileWithSession(sessionToken, profile);
+      await actor.saveStudentProfileWithSession(sessionToken, profile as any);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["allStudents"] });
@@ -139,6 +159,37 @@ export function useDeleteStudent(sessionToken: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["allStudents"] });
+      qc.invalidateQueries({ queryKey: ["archivedStudents"] });
+    },
+  });
+}
+
+export function useArchiveStudent(sessionToken: string) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (studentId: string) => {
+      if (!actor) throw new Error("Not connected");
+      await actor.archiveStudentProfileWithSession(sessionToken, studentId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["allStudents"] });
+      qc.invalidateQueries({ queryKey: ["archivedStudents"] });
+    },
+  });
+}
+
+export function useRestoreStudent(sessionToken: string) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (studentId: string) => {
+      if (!actor) throw new Error("Not connected");
+      await actor.restoreStudentProfileWithSession(sessionToken, studentId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["allStudents"] });
+      qc.invalidateQueries({ queryKey: ["archivedStudents"] });
     },
   });
 }

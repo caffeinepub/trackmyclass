@@ -12,6 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -36,7 +41,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Plus, Search, Trash2, UserPlus } from "lucide-react";
+import {
+  Archive,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Search,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { AppNav } from "../App";
@@ -44,7 +59,10 @@ import type { StudentProfile } from "../backend.d";
 import { canEdit } from "../hooks/useAuth";
 import {
   useAllStudents,
+  useArchiveStudent,
+  useArchivedStudents,
   useDeleteStudent,
+  useRestoreStudent,
   useSaveStudentProfile,
 } from "../hooks/useQueries";
 
@@ -89,7 +107,11 @@ const EMPTY_PROFILE: StudentProfile = {
 export default function StudentsPage({ nav }: Props) {
   const { session } = nav;
   const { data: students, isLoading } = useAllStudents(session.sessionToken);
+  const { data: archivedStudents, isLoading: isLoadingArchived } =
+    useArchivedStudents(session.sessionToken);
   const saveMutation = useSaveStudentProfile(session.sessionToken);
+  const archiveMutation = useArchiveStudent(session.sessionToken);
+  const restoreMutation = useRestoreStudent(session.sessionToken);
   const deleteMutation = useDeleteStudent(session.sessionToken);
   const canAdd = canEdit(session.role);
   const canDelete = session.role === "developer" || session.role === "admin";
@@ -98,7 +120,12 @@ export default function StudentsPage({ nav }: Props) {
   const [filterClass, setFilterClass] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<StudentProfile>({ ...EMPTY_PROFILE });
-  const [deleteTarget, setDeleteTarget] = useState<StudentProfile | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<StudentProfile | null>(
+    null,
+  );
+  const [permDeleteTarget, setPermDeleteTarget] =
+    useState<StudentProfile | null>(null);
+  const [archivedOpen, setArchivedOpen] = useState(false);
 
   const filtered = (students ?? []).filter((s) => {
     const matchSearch =
@@ -126,12 +153,32 @@ export default function StudentsPage({ nav }: Props) {
     }
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return;
+  const handleArchiveConfirm = async () => {
+    if (!archiveTarget) return;
     try {
-      await deleteMutation.mutateAsync(deleteTarget.studentId);
-      toast.success(`${deleteTarget.name} has been deleted`);
-      setDeleteTarget(null);
+      await archiveMutation.mutateAsync(archiveTarget.studentId);
+      toast.success(`${archiveTarget.name} has been archived`);
+      setArchiveTarget(null);
+    } catch {
+      toast.error("Failed to archive student");
+    }
+  };
+
+  const handleRestore = async (s: StudentProfile) => {
+    try {
+      await restoreMutation.mutateAsync(s.studentId);
+      toast.success(`${s.name} has been restored`);
+    } catch {
+      toast.error("Failed to restore student");
+    }
+  };
+
+  const handlePermDeleteConfirm = async () => {
+    if (!permDeleteTarget) return;
+    try {
+      await deleteMutation.mutateAsync(permDeleteTarget.studentId);
+      toast.success(`${permDeleteTarget.name} has been permanently deleted`);
+      setPermDeleteTarget(null);
     } catch {
       toast.error("Failed to delete student");
     }
@@ -139,10 +186,12 @@ export default function StudentsPage({ nav }: Props) {
 
   const set = (
     field: keyof StudentProfile,
-    value: string | number | bigint,
+    value: string | number | bigint | boolean,
   ) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
+
+  const archivedList = archivedStudents ?? [];
 
   return (
     <div data-ocid="students.page">
@@ -501,11 +550,11 @@ export default function StudentsPage({ nav }: Props) {
                       <button
                         type="button"
                         data-ocid={`students.delete_button.${idx + 1}`}
-                        className="p-2 text-destructive hover:bg-destructive/10 rounded transition-colors shrink-0"
-                        onClick={() => setDeleteTarget(s)}
-                        aria-label={`Delete ${s.name}`}
+                        className="p-2 text-amber-600 hover:bg-amber-50 rounded transition-colors shrink-0"
+                        onClick={() => setArchiveTarget(s)}
+                        aria-label={`Archive ${s.name}`}
                       >
-                        <Trash2 size={16} />
+                        <Archive size={16} />
                       </button>
                     )}
                   </div>
@@ -597,14 +646,15 @@ export default function StudentsPage({ nav }: Props) {
                             <button
                               type="button"
                               data-ocid={`students.delete_button.${idx + 1}`}
-                              className="p-1.5 text-destructive hover:bg-destructive/10 rounded transition-colors"
+                              className="p-1.5 text-amber-600 hover:bg-amber-50 rounded transition-colors flex items-center gap-1 text-xs font-medium"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setDeleteTarget(s);
+                                setArchiveTarget(s);
                               }}
-                              aria-label={`Delete ${s.name}`}
+                              aria-label={`Archive ${s.name}`}
                             >
-                              <Trash2 size={15} />
+                              <Archive size={14} />
+                              Archive
                             </button>
                           </TableCell>
                         )}
@@ -618,36 +668,250 @@ export default function StudentsPage({ nav }: Props) {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Archived Students Section */}
+      {canDelete && (
+        <Collapsible
+          open={archivedOpen}
+          onOpenChange={setArchivedOpen}
+          className="mt-6"
+          data-ocid="students.archived.panel"
+        >
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              data-ocid="students.archived.toggle"
+              className="flex w-full items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Archive size={15} className="text-muted-foreground" />
+                <span>
+                  Archived Students
+                  {archivedList.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {archivedList.length}
+                    </Badge>
+                  )}
+                </span>
+              </div>
+              {archivedOpen ? (
+                <ChevronUp size={15} className="text-muted-foreground" />
+              ) : (
+                <ChevronDown size={15} className="text-muted-foreground" />
+              )}
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Card className="mt-2 rounded-t-none border-t-0">
+              <CardContent className="p-0">
+                {isLoadingArchived ? (
+                  <div
+                    className="p-4 space-y-2"
+                    data-ocid="students.archived.loading_state"
+                  >
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-10 w-full" />
+                    ))}
+                  </div>
+                ) : archivedList.length === 0 ? (
+                  <div
+                    className="flex flex-col items-center gap-2 py-8 text-center"
+                    data-ocid="students.archived.empty_state"
+                  >
+                    <Archive size={24} className="text-muted-foreground" />
+                    <p className="text-muted-foreground text-sm">
+                      No archived students.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Mobile archived list */}
+                    <div className="md:hidden divide-y divide-border">
+                      {archivedList.map((s, idx) => (
+                        <div
+                          key={s.studentId}
+                          data-ocid={`students.archived.item.${idx + 1}`}
+                          className="flex items-center gap-2 px-4 py-3"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">
+                              {s.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Class{" "}
+                              {ROMAN[Number(s.classLevel)] ??
+                                String(s.classLevel)}
+                              {s.section ? ` · Sec ${s.section}` : ""} · Roll{" "}
+                              {s.rollNo}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            data-ocid={`students.archived.restore_button.${idx + 1}`}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors shrink-0"
+                            onClick={() => handleRestore(s)}
+                            disabled={restoreMutation.isPending}
+                            aria-label={`Restore ${s.name}`}
+                          >
+                            <RotateCcw size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            data-ocid={`students.archived.delete_button.${idx + 1}`}
+                            className="p-2 text-destructive hover:bg-destructive/10 rounded transition-colors shrink-0"
+                            onClick={() => setPermDeleteTarget(s)}
+                            aria-label={`Permanently delete ${s.name}`}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Desktop archived table */}
+                    <div className="hidden md:block">
+                      <Table data-ocid="students.archived.table">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Admission No</TableHead>
+                            <TableHead>Class</TableHead>
+                            <TableHead>Section</TableHead>
+                            <TableHead>Roll No</TableHead>
+                            <TableHead className="w-48" />
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {archivedList.map((s, idx) => (
+                            <TableRow
+                              key={s.studentId}
+                              data-ocid={`students.archived.item.${idx + 1}`}
+                            >
+                              <TableCell className="font-medium">
+                                {s.name}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-sm">
+                                {s.studentId}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">
+                                  Class{" "}
+                                  {ROMAN[Number(s.classLevel)] ??
+                                    String(s.classLevel)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{s.section}</TableCell>
+                              <TableCell>{s.rollNo}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    data-ocid={`students.archived.restore_button.${idx + 1}`}
+                                    className="text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700 h-8 text-xs"
+                                    onClick={() => handleRestore(s)}
+                                    disabled={restoreMutation.isPending}
+                                  >
+                                    {restoreMutation.isPending ? (
+                                      <Loader2
+                                        size={12}
+                                        className="mr-1 animate-spin"
+                                      />
+                                    ) : (
+                                      <RotateCcw size={12} className="mr-1" />
+                                    )}
+                                    Restore
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    data-ocid={`students.archived.delete_button.${idx + 1}`}
+                                    className="text-destructive border-destructive/30 hover:bg-destructive/10 h-8 text-xs"
+                                    onClick={() => setPermDeleteTarget(s)}
+                                  >
+                                    <Trash2 size={12} className="mr-1" />
+                                    Delete Permanently
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
+      {/* Archive Confirmation Dialog */}
       <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        open={!!archiveTarget}
+        onOpenChange={(open) => !open && setArchiveTarget(null)}
       >
-        <AlertDialogContent data-ocid="students.delete.dialog">
+        <AlertDialogContent data-ocid="students.archive.dialog">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Student</AlertDialogTitle>
+            <AlertDialogTitle>Archive Student</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete{" "}
-              <strong>{deleteTarget?.name}</strong>? This cannot be undone.
+              This will archive <strong>{archiveTarget?.name}</strong>. You can
+              restore them later from the Archived Students section.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel
-              data-ocid="students.delete.cancel_button"
-              onClick={() => setDeleteTarget(null)}
+              data-ocid="students.archive.cancel_button"
+              onClick={() => setArchiveTarget(null)}
             >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              data-ocid="students.delete.confirm_button"
+              data-ocid="students.archive.confirm_button"
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={handleArchiveConfirm}
+              disabled={archiveMutation.isPending}
+            >
+              {archiveMutation.isPending ? (
+                <Loader2 size={14} className="mr-2 animate-spin" />
+              ) : null}
+              Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Permanent Delete Confirmation Dialog */}
+      <AlertDialog
+        open={!!permDeleteTarget}
+        onOpenChange={(open) => !open && setPermDeleteTarget(null)}
+      >
+        <AlertDialogContent data-ocid="students.perm_delete.dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently Delete Student</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete{" "}
+              <strong>{permDeleteTarget?.name}</strong> and all their records.
+              This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              data-ocid="students.perm_delete.cancel_button"
+              onClick={() => setPermDeleteTarget(null)}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              data-ocid="students.perm_delete.confirm_button"
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-              onClick={handleDeleteConfirm}
+              onClick={handlePermDeleteConfirm}
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending ? (
                 <Loader2 size={14} className="mr-2 animate-spin" />
               ) : null}
-              Delete
+              Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -179,6 +179,7 @@ export interface backendInterface {
     deleteCircular(sessionToken: string, id: string): Promise<void>;
     deleteClassStudyMaterial(sessionToken: string, id: string): Promise<void>;
     deleteNotice(sessionToken: string, id: string): Promise<void>;
+    archiveStudentProfileWithSession(sessionToken: string, studentId: StudentId): Promise<void>;
     deleteStudentProfileWithSession(sessionToken: string, studentId: StudentId): Promise<void>;
     deleteUserAccount(sessionToken: string, username: string): Promise<void>;
     getActivityRecords(studentId: StudentId): Promise<Array<ActivityRecord>>;
@@ -219,6 +220,7 @@ export interface backendInterface {
     isCallerAdmin(): Promise<boolean>;
     listAllStudentProfiles(): Promise<Array<StudentProfile>>;
     listAllStudentProfilesWithSession(sessionToken: string): Promise<Array<StudentProfile>>;
+    listArchivedStudentProfilesWithSession(sessionToken: string): Promise<Array<StudentProfile>>;
     listAllStudyMaterials(): Promise<Array<StudyMaterial>>;
     listCirculars(sessionToken: string): Promise<Array<Circular>>;
     listClassStudyMaterials(sessionToken: string): Promise<Array<ClassStudyMaterial>>;
@@ -232,6 +234,7 @@ export interface backendInterface {
         sessionToken: string;
     } | null>;
     logoutUser(sessionToken: string): Promise<void>;
+    restoreStudentProfileWithSession(sessionToken: string, studentId: StudentId): Promise<void>;
     postNotice(sessionToken: string, id: string, title: string, content: string, hasFile: boolean, fileBlob: ExternalBlob | null, fileName: string, postedAt: string): Promise<void>;
     saveActivityRecord(studentId: StudentId, activity: ActivityRecord): Promise<void>;
     saveActivityRecordWithSession(sessionToken: string, studentId: StudentId, activity: ActivityRecord): Promise<void>;
