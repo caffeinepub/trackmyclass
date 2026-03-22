@@ -203,12 +203,12 @@ export default function Layout({ nav, children, logout }: LayoutProps) {
       </header>
 
       {/* Main */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 pb-20 md:pb-6">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
         {children}
       </main>
 
       {/* Footer */}
-      <footer className="hidden md:flex flex-col items-center border-t border-border py-4 gap-1">
+      <footer className="flex flex-col items-center border-t border-border py-4 gap-1">
         <p className="text-xs text-muted-foreground">
           Developed by{" "}
           <strong className="text-foreground">Phanindra Bharali</strong>
@@ -225,36 +225,6 @@ export default function Layout({ nav, children, logout }: LayoutProps) {
           </a>
         </p>
       </footer>
-
-      {/* Bottom Navigation Bar — mobile only */}
-      <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border"
-        aria-label="Bottom navigation"
-      >
-        <div className="flex items-stretch h-14">
-          {baseNavLinks.slice(0, 5).map(({ page, label, icon: Icon }) => (
-            <button
-              type="button"
-              key={page}
-              data-ocid={`nav.bottom.${page}.link`}
-              onClick={() => nav.navigate(page)}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[9px] font-medium transition-colors min-h-[44px] ${
-                nav.currentPage === page
-                  ? "text-white"
-                  : "text-white/50 hover:text-white/80"
-              }`}
-            >
-              <Icon
-                size={18}
-                className={
-                  nav.currentPage === page ? "text-white" : "text-white/50"
-                }
-              />
-              {label}
-            </button>
-          ))}
-        </div>
-      </nav>
     </div>
   );
 }

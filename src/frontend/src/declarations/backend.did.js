@@ -211,6 +211,9 @@ export const idlService = IDL.Service({
   'deleteClassStudyMaterial' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'deleteNotice' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'deleteStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
+  'archiveStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
+  'restoreStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
+  'listArchivedStudentProfilesWithSession' : IDL.Func([IDL.Text], [IDL.Vec(StudentProfile)], ['query']),
   'deleteUserAccount' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'getActivityRecords' : IDL.Func(
       [StudentId],
@@ -657,6 +660,9 @@ export const idlFactory = ({ IDL }) => {
     'deleteClassStudyMaterial' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'deleteNotice' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'deleteStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
+    'archiveStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
+    'restoreStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
+    'listArchivedStudentProfilesWithSession' : IDL.Func([IDL.Text], [IDL.Vec(StudentProfile)], ['query']),
     'deleteUserAccount' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'getActivityRecords' : IDL.Func(
         [StudentId],

@@ -197,6 +197,9 @@ export interface _SERVICE {
     [string, StudentId],
     undefined
   >,
+  'archiveStudentProfileWithSession' : ActorMethod<[string, StudentId], undefined>,
+  'restoreStudentProfileWithSession' : ActorMethod<[string, StudentId], undefined>,
+  'listArchivedStudentProfilesWithSession' : ActorMethod<[string], Array<StudentProfile>>,
   'deleteUserAccount' : ActorMethod<[string, string], undefined>,
   'getActivityRecords' : ActorMethod<[StudentId], Array<ActivityRecord>>,
   'getActivityRecordsWithSession' : ActorMethod<

@@ -205,6 +205,7 @@ actor {
   let reportCards = Map.empty<StudentId, [ReportCard]>();
   let studyMaterials = Map.empty<Text, StudyMaterial>();
   let users = Map.empty<Text, SessionAccount>();
+  stable var stableUsers : [SessionAccount] = [];
   let sessions = Map.empty<Text, SessionInfo>();
   let noticePosts = Map.empty<Text, NoticePost>();
   let circulars = Map.empty<Text, Circular>();
@@ -220,7 +221,9 @@ actor {
     assignedClass = null;
     activeSession = null;
   };
-  users.add("developer", developerAccount);
+  if (not users.containsKey("developer")) {
+    users.add("developer", developerAccount);
+  };
 
   func generateSessionToken() : async Text {
     (await Random.nat64()).toText();
@@ -274,6 +277,17 @@ actor {
     assignedClass : ?Nat;
     displayName : Text;
   } {
+    // Ensure developer account always exists
+    if (not users.containsKey("developer")) {
+      users.add("developer", {
+        username = "developer";
+        password = "vkvraga2025";
+        displayName = "Phanindra Bharali";
+        role = "developer";
+        assignedClass = null;
+        activeSession = null;
+      });
+    };
     switch (users.get(username)) {
       case (null) { null };
       case (?account) {
@@ -953,4 +967,24 @@ actor {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) { Runtime.trap("Unauthorized: Only users can view students by class") };
     studentProfiles.values().toArray().filter(func(profile) { profile.classLevel == classLevel });
   };
+  system func preupgrade() {
+    stableUsers := users.values().toArray();
+  };
+
+  system func postupgrade() {
+    for (account in stableUsers.vals()) {
+      users.add(account.username, account);
+    };
+    if (not users.containsKey("developer")) {
+      users.add("developer", {
+        username = "developer";
+        password = "vkvraga2025";
+        displayName = "Phanindra Bharali";
+        role = "developer";
+        assignedClass = null;
+        activeSession = null;
+      });
+    };
+  };
+
 };

@@ -148,7 +148,7 @@ export default function StudentsPage({ nav }: Props) {
       toast.success("Student saved successfully");
       setDialogOpen(false);
       setForm({ ...EMPTY_PROFILE });
-    } catch {
+    } catch (_error) {
       toast.error("Failed to save student");
     }
   };
@@ -159,8 +159,8 @@ export default function StudentsPage({ nav }: Props) {
       await archiveMutation.mutateAsync(archiveTarget.studentId);
       toast.success(`${archiveTarget.name} has been archived`);
       setArchiveTarget(null);
-    } catch {
-      toast.error("Failed to archive student");
+    } catch (error) {
+      toast.error(`Failed to archive: ${String(error)}`);
     }
   };
 
@@ -168,8 +168,8 @@ export default function StudentsPage({ nav }: Props) {
     try {
       await restoreMutation.mutateAsync(s.studentId);
       toast.success(`${s.name} has been restored`);
-    } catch {
-      toast.error("Failed to restore student");
+    } catch (error) {
+      toast.error(`Failed to restore: ${String(error)}`);
     }
   };
 
@@ -179,8 +179,8 @@ export default function StudentsPage({ nav }: Props) {
       await deleteMutation.mutateAsync(permDeleteTarget.studentId);
       toast.success(`${permDeleteTarget.name} has been permanently deleted`);
       setPermDeleteTarget(null);
-    } catch {
-      toast.error("Failed to delete student");
+    } catch (error) {
+      toast.error(`Failed to delete: ${String(error)}`);
     }
   };
 
