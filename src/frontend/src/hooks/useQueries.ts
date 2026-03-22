@@ -18,121 +18,109 @@ export type {
   ReportCard,
 };
 
-export function useIsAdmin() {
-  const { actor, isFetching } = useActor();
-  return useQuery<boolean>({
-    queryKey: ["isAdmin"],
-    queryFn: async () => {
-      if (!actor) return false;
-      return actor.isCallerAdmin();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useAllStudents() {
+export function useAllStudents(sessionToken: string) {
   const { actor, isFetching } = useActor();
   return useQuery<StudentProfile[]>({
-    queryKey: ["allStudents"],
+    queryKey: ["allStudents", sessionToken],
     queryFn: async () => {
-      if (!actor) return [];
-      return actor.listAllStudentProfiles();
+      if (!actor || !sessionToken) return [];
+      return actor.listAllStudentProfilesWithSession(sessionToken);
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!sessionToken,
   });
 }
 
-export function useStudentProfile(studentId: string) {
+export function useStudentProfile(sessionToken: string, studentId: string) {
   const { actor, isFetching } = useActor();
   return useQuery<StudentProfile | null>({
-    queryKey: ["studentProfile", studentId],
+    queryKey: ["studentProfile", sessionToken, studentId],
     queryFn: async () => {
-      if (!actor || !studentId) return null;
-      return actor.getStudentProfile(studentId);
+      if (!actor || !studentId || !sessionToken) return null;
+      return actor.getStudentProfileWithSession(sessionToken, studentId);
     },
-    enabled: !!actor && !isFetching && !!studentId,
+    enabled: !!actor && !isFetching && !!studentId && !!sessionToken,
   });
 }
 
-export function useAllStudentRecords(studentId: string) {
+export function useAllStudentRecords(sessionToken: string, studentId: string) {
   const { actor, isFetching } = useActor();
   return useQuery({
-    queryKey: ["allRecords", studentId],
+    queryKey: ["allRecords", sessionToken, studentId],
     queryFn: async () => {
-      if (!actor || !studentId) return null;
-      return actor.getAllRecordsForStudent(studentId);
+      if (!actor || !studentId || !sessionToken) return null;
+      return actor.getAllRecordsForStudentWithSession(sessionToken, studentId);
     },
-    enabled: !!actor && !isFetching && !!studentId,
+    enabled: !!actor && !isFetching && !!studentId && !!sessionToken,
   });
 }
 
-export function useSubjectMarks(studentId: string) {
+export function useSubjectMarks(sessionToken: string, studentId: string) {
   const { actor, isFetching } = useActor();
   return useQuery<SubjectMarks[]>({
-    queryKey: ["subjectMarks", studentId],
+    queryKey: ["subjectMarks", sessionToken, studentId],
     queryFn: async () => {
-      if (!actor || !studentId) return [];
-      return actor.getSubjectMarks(studentId);
+      if (!actor || !studentId || !sessionToken) return [];
+      return actor.getSubjectMarksWithSession(sessionToken, studentId);
     },
-    enabled: !!actor && !isFetching && !!studentId,
+    enabled: !!actor && !isFetching && !!studentId && !!sessionToken,
   });
 }
 
-export function useMonthlyAttendance(studentId: string) {
+export function useMonthlyAttendance(sessionToken: string, studentId: string) {
   const { actor, isFetching } = useActor();
   return useQuery<MonthlyAttendance[]>({
-    queryKey: ["attendance", studentId],
+    queryKey: ["attendance", sessionToken, studentId],
     queryFn: async () => {
-      if (!actor || !studentId) return [];
-      return actor.getMonthlyAttendance(studentId);
+      if (!actor || !studentId || !sessionToken) return [];
+      return actor.getMonthlyAttendanceWithSession(sessionToken, studentId);
     },
-    enabled: !!actor && !isFetching && !!studentId,
+    enabled: !!actor && !isFetching && !!studentId && !!sessionToken,
   });
 }
 
-export function useSportsRecords(studentId: string) {
+export function useSportsRecords(sessionToken: string, studentId: string) {
   const { actor, isFetching } = useActor();
   return useQuery<SportsRecord[]>({
-    queryKey: ["sports", studentId],
+    queryKey: ["sports", sessionToken, studentId],
     queryFn: async () => {
-      if (!actor || !studentId) return [];
-      return actor.getSportsRecords(studentId);
+      if (!actor || !studentId || !sessionToken) return [];
+      return actor.getSportsRecordsWithSession(sessionToken, studentId);
     },
-    enabled: !!actor && !isFetching && !!studentId,
+    enabled: !!actor && !isFetching && !!studentId && !!sessionToken,
   });
 }
 
-export function useActivityRecords(studentId: string) {
+export function useActivityRecords(sessionToken: string, studentId: string) {
   const { actor, isFetching } = useActor();
   return useQuery<ActivityRecord[]>({
-    queryKey: ["activities", studentId],
+    queryKey: ["activities", sessionToken, studentId],
     queryFn: async () => {
-      if (!actor || !studentId) return [];
-      return actor.getActivityRecords(studentId);
+      if (!actor || !studentId || !sessionToken) return [];
+      return actor.getActivityRecordsWithSession(sessionToken, studentId);
     },
-    enabled: !!actor && !isFetching && !!studentId,
+    enabled: !!actor && !isFetching && !!studentId && !!sessionToken,
   });
 }
 
-export function useReportCards(studentId: string) {
+export function useReportCards(sessionToken: string, studentId: string) {
   const { actor, isFetching } = useActor();
   return useQuery<ReportCard[]>({
-    queryKey: ["reportCards", studentId],
+    queryKey: ["reportCards", sessionToken, studentId],
     queryFn: async () => {
-      if (!actor || !studentId) return [];
-      return actor.getReportCards(studentId);
+      if (!actor || !studentId || !sessionToken) return [];
+      return actor.getReportCardsWithSession(sessionToken, studentId);
     },
-    enabled: !!actor && !isFetching && !!studentId,
+    enabled: !!actor && !isFetching && !!studentId && !!sessionToken,
   });
 }
 
-export function useSaveStudentProfile() {
+export function useSaveStudentProfile(sessionToken: string) {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (profile: StudentProfile) => {
       if (!actor) throw new Error("Not connected");
-      await actor.saveStudentProfile(profile);
+      await actor.saveStudentProfileWithSession(sessionToken, profile);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["allStudents"] });
@@ -141,72 +129,102 @@ export function useSaveStudentProfile() {
   });
 }
 
-export function useSaveSubjectMarks(studentId: string) {
+export function useDeleteStudent(sessionToken: string) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (studentId: string) => {
+      if (!actor) throw new Error("Not connected");
+      await actor.deleteStudentProfileWithSession(sessionToken, studentId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["allStudents"] });
+    },
+  });
+}
+
+export function useSaveSubjectMarks(sessionToken: string, studentId: string) {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (marks: SubjectMarks[]) => {
       if (!actor) throw new Error("Not connected");
-      await actor.saveSubjectMarks(studentId, marks);
+      await actor.saveSubjectMarksWithSession(sessionToken, studentId, marks);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["subjectMarks", studentId] });
+      qc.invalidateQueries({
+        queryKey: ["subjectMarks", sessionToken, studentId],
+      });
     },
   });
 }
 
-export function useSaveAttendance(studentId: string) {
+export function useSaveAttendance(sessionToken: string, studentId: string) {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (att: MonthlyAttendance) => {
       if (!actor) throw new Error("Not connected");
-      await actor.saveMonthlyAttendance(studentId, att);
+      await actor.saveMonthlyAttendanceWithSession(
+        sessionToken,
+        studentId,
+        att,
+      );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["attendance", studentId] });
+      qc.invalidateQueries({
+        queryKey: ["attendance", sessionToken, studentId],
+      });
     },
   });
 }
 
-export function useSaveSportsRecord(studentId: string) {
+export function useSaveSportsRecord(sessionToken: string, studentId: string) {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (record: SportsRecord) => {
       if (!actor) throw new Error("Not connected");
-      await actor.saveSportsRecord(studentId, record);
+      await actor.saveSportsRecordWithSession(sessionToken, studentId, record);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["sports", studentId] });
+      qc.invalidateQueries({ queryKey: ["sports", sessionToken, studentId] });
     },
   });
 }
 
-export function useSaveActivityRecord(studentId: string) {
+export function useSaveActivityRecord(sessionToken: string, studentId: string) {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (activity: ActivityRecord) => {
       if (!actor) throw new Error("Not connected");
-      await actor.saveActivityRecord(studentId, activity);
+      await actor.saveActivityRecordWithSession(
+        sessionToken,
+        studentId,
+        activity,
+      );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["activities", studentId] });
+      qc.invalidateQueries({
+        queryKey: ["activities", sessionToken, studentId],
+      });
     },
   });
 }
 
-export function useSaveReportCard(studentId: string) {
+export function useSaveReportCard(sessionToken: string, studentId: string) {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (report: ReportCard) => {
       if (!actor) throw new Error("Not connected");
-      await actor.saveReportCard(studentId, report);
+      await actor.saveReportCardWithSession(sessionToken, studentId, report);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["reportCards", studentId] });
+      qc.invalidateQueries({
+        queryKey: ["reportCards", sessionToken, studentId],
+      });
     },
   });
 }

@@ -51,6 +51,24 @@ export interface SportsRecord {
     position: string;
     remarks: string;
 }
+export interface NoticePost {
+    id: string;
+    title: string;
+    hasFile: boolean;
+    postedAt: string;
+    postedBy: string;
+    content: string;
+    fileBlob?: ExternalBlob;
+    fileName: string;
+}
+export interface UserAccount {
+    username: string;
+    displayName: string;
+    password: string;
+    role: string;
+    assignedClass?: bigint;
+}
+export type StudentId = string;
 export interface MonthlyAttendance {
     month: string;
     studentId: StudentId;
@@ -59,7 +77,15 @@ export interface MonthlyAttendance {
     session: string;
     percentage: number;
 }
-export type StudentId = string;
+export interface Circular {
+    id: string;
+    title: string;
+    fileBlob: ExternalBlob;
+    description: string;
+    fileName: string;
+    uploadedAt: string;
+    uploadedBy: string;
+}
 export type SubjectMarks = {
     __kind__: "lowerClass";
     lowerClass: LowerClassMarks;
@@ -88,6 +114,12 @@ export interface StudentProfile {
     religion: string;
     aadhar: string;
     weightReopening: number;
+}
+export interface SessionInfo {
+    username: string;
+    displayName: string;
+    role: string;
+    assignedClass?: bigint;
 }
 export interface UpperClassMarks {
     nb1: number;
@@ -121,6 +153,17 @@ export interface ActivityRecord {
     grade: string;
     remarks: string;
 }
+export interface ClassStudyMaterial {
+    id: string;
+    title: string;
+    subject: string;
+    fileBlob: ExternalBlob;
+    description: string;
+    fileName: string;
+    classLevel: bigint;
+    uploadedAt: string;
+    uploadedBy: string;
+}
 export interface UserProfile {
     studentId?: StudentId;
     name: string;
@@ -132,8 +175,23 @@ export enum UserRole {
 }
 export interface backendInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    createUserAccount(sessionToken: string, account: UserAccount): Promise<void>;
+    deleteCircular(sessionToken: string, id: string): Promise<void>;
+    deleteClassStudyMaterial(sessionToken: string, id: string): Promise<void>;
+    deleteNotice(sessionToken: string, id: string): Promise<void>;
+    deleteStudentProfileWithSession(sessionToken: string, studentId: StudentId): Promise<void>;
+    deleteUserAccount(sessionToken: string, username: string): Promise<void>;
     getActivityRecords(studentId: StudentId): Promise<Array<ActivityRecord>>;
+    getActivityRecordsWithSession(sessionToken: string, studentId: StudentId): Promise<Array<ActivityRecord>>;
     getAllRecordsForStudent(studentId: StudentId): Promise<{
+        marks: Array<SubjectMarks>;
+        reportCards: Array<ReportCard>;
+        activities: Array<ActivityRecord>;
+        attendance: Array<MonthlyAttendance>;
+        sports: Array<SportsRecord>;
+        profile: StudentProfile;
+    }>;
+    getAllRecordsForStudentWithSession(sessionToken: string, studentId: StudentId): Promise<{
         marks: Array<SubjectMarks>;
         reportCards: Array<ReportCard>;
         activities: Array<ActivityRecord>;
@@ -144,23 +202,57 @@ export interface backendInterface {
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getMonthlyAttendance(studentId: StudentId): Promise<Array<MonthlyAttendance>>;
+    getMonthlyAttendanceWithSession(sessionToken: string, studentId: StudentId): Promise<Array<MonthlyAttendance>>;
     getReportCards(studentId: StudentId): Promise<Array<ReportCard>>;
+    getReportCardsWithSession(sessionToken: string, studentId: StudentId): Promise<Array<ReportCard>>;
     getSportsRecords(studentId: StudentId): Promise<Array<SportsRecord>>;
+    getSportsRecordsWithSession(sessionToken: string, studentId: StudentId): Promise<Array<SportsRecord>>;
     getStudentProfile(studentId: StudentId): Promise<StudentProfile>;
+    getStudentProfileWithSession(sessionToken: string, studentId: StudentId): Promise<StudentProfile>;
     getStudentsByClass(classLevel: bigint): Promise<Array<StudentProfile>>;
+    getStudentsByClassWithSession(sessionToken: string, classLevel: bigint): Promise<Array<StudentProfile>>;
     getStudyMaterial(id: string): Promise<StudyMaterial | null>;
+    getStudyMaterialWithSession(sessionToken: string, id: string): Promise<StudyMaterial | null>;
     getSubjectMarks(studentId: StudentId): Promise<Array<SubjectMarks>>;
+    getSubjectMarksWithSession(sessionToken: string, studentId: StudentId): Promise<Array<SubjectMarks>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     listAllStudentProfiles(): Promise<Array<StudentProfile>>;
+    listAllStudentProfilesWithSession(sessionToken: string): Promise<Array<StudentProfile>>;
     listAllStudyMaterials(): Promise<Array<StudyMaterial>>;
+    listCirculars(sessionToken: string): Promise<Array<Circular>>;
+    listClassStudyMaterials(sessionToken: string): Promise<Array<ClassStudyMaterial>>;
+    listClassStudyMaterialsByClass(sessionToken: string, classLevel: bigint): Promise<Array<ClassStudyMaterial>>;
+    listNotices(sessionToken: string): Promise<Array<NoticePost>>;
+    listUserAccounts(sessionToken: string): Promise<Array<UserAccount>>;
+    loginUser(username: string, password: string): Promise<{
+        displayName: string;
+        role: string;
+        assignedClass?: bigint;
+        sessionToken: string;
+    } | null>;
+    logoutUser(sessionToken: string): Promise<void>;
+    postNotice(sessionToken: string, id: string, title: string, content: string, hasFile: boolean, fileBlob: ExternalBlob | null, fileName: string, postedAt: string): Promise<void>;
     saveActivityRecord(studentId: StudentId, activity: ActivityRecord): Promise<void>;
+    saveActivityRecordWithSession(sessionToken: string, studentId: StudentId, activity: ActivityRecord): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveMonthlyAttendance(studentId: StudentId, attendance: MonthlyAttendance): Promise<void>;
+    saveMonthlyAttendanceWithSession(sessionToken: string, studentId: StudentId, attendance: MonthlyAttendance): Promise<void>;
     saveReportCard(studentId: StudentId, report: ReportCard): Promise<void>;
+    saveReportCardWithSession(sessionToken: string, studentId: StudentId, report: ReportCard): Promise<void>;
     saveSportsRecord(studentId: StudentId, record: SportsRecord): Promise<void>;
+    saveSportsRecordWithSession(sessionToken: string, studentId: StudentId, record: SportsRecord): Promise<void>;
     saveStudentProfile(profile: StudentProfile): Promise<void>;
+    saveStudentProfileWithSession(sessionToken: string, profile: StudentProfile): Promise<void>;
     saveSubjectMarks(studentId: StudentId, marks: Array<SubjectMarks>): Promise<void>;
+    saveSubjectMarksWithSession(sessionToken: string, studentId: StudentId, marks: Array<SubjectMarks>): Promise<void>;
     searchStudents(searchTerm: string): Promise<Array<StudentProfile>>;
+    searchStudentsWithSession(sessionToken: string, searchTerm: string): Promise<Array<StudentProfile>>;
+    setStudentIdForUserProfile(studentId: string): Promise<void>;
+    updateUserPassword(sessionToken: string, username: string, newPassword: string): Promise<void>;
+    uploadCircular(sessionToken: string, id: string, title: string, description: string, fileBlob: ExternalBlob, fileName: string, uploadedAt: string): Promise<void>;
+    uploadClassStudyMaterial(sessionToken: string, id: string, title: string, classLevel: bigint, subject: string, description: string, fileBlob: ExternalBlob, fileName: string, uploadedAt: string): Promise<void>;
     uploadStudyMaterial(id: string, name: string, blob: ExternalBlob, comments: string): Promise<void>;
+    uploadStudyMaterialWithSession(sessionToken: string, id: string, name: string, blob: ExternalBlob, comments: string): Promise<void>;
+    validateSession(sessionToken: string): Promise<SessionInfo | null>;
 }

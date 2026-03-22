@@ -18,6 +18,26 @@ export interface ActivityRecord {
   'grade' : string,
   'remarks' : string,
 }
+export interface Circular {
+  'id' : string,
+  'title' : string,
+  'fileBlob' : ExternalBlob,
+  'description' : string,
+  'fileName' : string,
+  'uploadedAt' : string,
+  'uploadedBy' : string,
+}
+export interface ClassStudyMaterial {
+  'id' : string,
+  'title' : string,
+  'subject' : string,
+  'fileBlob' : ExternalBlob,
+  'description' : string,
+  'fileName' : string,
+  'classLevel' : bigint,
+  'uploadedAt' : string,
+  'uploadedBy' : string,
+}
 export type ExternalBlob = Uint8Array;
 export interface LowerClassMarks {
   'totalMarks' : number,
@@ -41,6 +61,16 @@ export interface MonthlyAttendance {
   'session' : string,
   'percentage' : number,
 }
+export interface NoticePost {
+  'id' : string,
+  'title' : string,
+  'hasFile' : boolean,
+  'postedAt' : string,
+  'postedBy' : string,
+  'content' : string,
+  'fileBlob' : [] | [ExternalBlob],
+  'fileName' : string,
+}
 export interface ReportCard {
   'studentId' : StudentId,
   'term2Total' : number,
@@ -53,6 +83,12 @@ export interface ReportCard {
   'attendanceSummary' : string,
   'term1Total' : number,
   'remarks' : string,
+}
+export interface SessionInfo {
+  'username' : string,
+  'displayName' : string,
+  'role' : string,
+  'assignedClass' : [] | [bigint],
 }
 export interface SportsRecord {
   'studentId' : StudentId,
@@ -113,6 +149,13 @@ export interface UpperClassMarks {
   'term1Exam' : number,
   'term1Total' : number,
 }
+export interface UserAccount {
+  'username' : string,
+  'displayName' : string,
+  'password' : string,
+  'role' : string,
+  'assignedClass' : [] | [bigint],
+}
 export interface UserProfile { 'studentId' : [] | [StudentId], 'name' : string }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
@@ -146,9 +189,33 @@ export interface _SERVICE {
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'createUserAccount' : ActorMethod<[string, UserAccount], undefined>,
+  'deleteCircular' : ActorMethod<[string, string], undefined>,
+  'deleteClassStudyMaterial' : ActorMethod<[string, string], undefined>,
+  'deleteNotice' : ActorMethod<[string, string], undefined>,
+  'deleteStudentProfileWithSession' : ActorMethod<
+    [string, StudentId],
+    undefined
+  >,
+  'deleteUserAccount' : ActorMethod<[string, string], undefined>,
   'getActivityRecords' : ActorMethod<[StudentId], Array<ActivityRecord>>,
+  'getActivityRecordsWithSession' : ActorMethod<
+    [string, StudentId],
+    Array<ActivityRecord>
+  >,
   'getAllRecordsForStudent' : ActorMethod<
     [StudentId],
+    {
+      'marks' : Array<SubjectMarks>,
+      'reportCards' : Array<ReportCard>,
+      'activities' : Array<ActivityRecord>,
+      'attendance' : Array<MonthlyAttendance>,
+      'sports' : Array<SportsRecord>,
+      'profile' : StudentProfile,
+    }
+  >,
+  'getAllRecordsForStudentWithSession' : ActorMethod<
+    [string, StudentId],
     {
       'marks' : Array<SubjectMarks>,
       'reportCards' : Array<ReportCard>,
@@ -161,31 +228,149 @@ export interface _SERVICE {
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getMonthlyAttendance' : ActorMethod<[StudentId], Array<MonthlyAttendance>>,
+  'getMonthlyAttendanceWithSession' : ActorMethod<
+    [string, StudentId],
+    Array<MonthlyAttendance>
+  >,
   'getReportCards' : ActorMethod<[StudentId], Array<ReportCard>>,
+  'getReportCardsWithSession' : ActorMethod<
+    [string, StudentId],
+    Array<ReportCard>
+  >,
   'getSportsRecords' : ActorMethod<[StudentId], Array<SportsRecord>>,
+  'getSportsRecordsWithSession' : ActorMethod<
+    [string, StudentId],
+    Array<SportsRecord>
+  >,
   'getStudentProfile' : ActorMethod<[StudentId], StudentProfile>,
+  'getStudentProfileWithSession' : ActorMethod<
+    [string, StudentId],
+    StudentProfile
+  >,
   'getStudentsByClass' : ActorMethod<[bigint], Array<StudentProfile>>,
+  'getStudentsByClassWithSession' : ActorMethod<
+    [string, bigint],
+    Array<StudentProfile>
+  >,
   'getStudyMaterial' : ActorMethod<[string], [] | [StudyMaterial]>,
+  'getStudyMaterialWithSession' : ActorMethod<
+    [string, string],
+    [] | [StudyMaterial]
+  >,
   'getSubjectMarks' : ActorMethod<[StudentId], Array<SubjectMarks>>,
+  'getSubjectMarksWithSession' : ActorMethod<
+    [string, StudentId],
+    Array<SubjectMarks>
+  >,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'listAllStudentProfiles' : ActorMethod<[], Array<StudentProfile>>,
+  'listAllStudentProfilesWithSession' : ActorMethod<
+    [string],
+    Array<StudentProfile>
+  >,
   'listAllStudyMaterials' : ActorMethod<[], Array<StudyMaterial>>,
+  'listCirculars' : ActorMethod<[string], Array<Circular>>,
+  'listClassStudyMaterials' : ActorMethod<[string], Array<ClassStudyMaterial>>,
+  'listClassStudyMaterialsByClass' : ActorMethod<
+    [string, bigint],
+    Array<ClassStudyMaterial>
+  >,
+  'listNotices' : ActorMethod<[string], Array<NoticePost>>,
+  'listUserAccounts' : ActorMethod<[string], Array<UserAccount>>,
+  'loginUser' : ActorMethod<
+    [string, string],
+    [] | [
+      {
+        'displayName' : string,
+        'role' : string,
+        'assignedClass' : [] | [bigint],
+        'sessionToken' : string,
+      }
+    ]
+  >,
+  'logoutUser' : ActorMethod<[string], undefined>,
+  'postNotice' : ActorMethod<
+    [
+      string,
+      string,
+      string,
+      string,
+      boolean,
+      [] | [ExternalBlob],
+      string,
+      string,
+    ],
+    undefined
+  >,
   'saveActivityRecord' : ActorMethod<[StudentId, ActivityRecord], undefined>,
+  'saveActivityRecordWithSession' : ActorMethod<
+    [string, StudentId, ActivityRecord],
+    undefined
+  >,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'saveMonthlyAttendance' : ActorMethod<
     [StudentId, MonthlyAttendance],
     undefined
   >,
+  'saveMonthlyAttendanceWithSession' : ActorMethod<
+    [string, StudentId, MonthlyAttendance],
+    undefined
+  >,
   'saveReportCard' : ActorMethod<[StudentId, ReportCard], undefined>,
+  'saveReportCardWithSession' : ActorMethod<
+    [string, StudentId, ReportCard],
+    undefined
+  >,
   'saveSportsRecord' : ActorMethod<[StudentId, SportsRecord], undefined>,
+  'saveSportsRecordWithSession' : ActorMethod<
+    [string, StudentId, SportsRecord],
+    undefined
+  >,
   'saveStudentProfile' : ActorMethod<[StudentProfile], undefined>,
+  'saveStudentProfileWithSession' : ActorMethod<
+    [string, StudentProfile],
+    undefined
+  >,
   'saveSubjectMarks' : ActorMethod<[StudentId, Array<SubjectMarks>], undefined>,
+  'saveSubjectMarksWithSession' : ActorMethod<
+    [string, StudentId, Array<SubjectMarks>],
+    undefined
+  >,
   'searchStudents' : ActorMethod<[string], Array<StudentProfile>>,
+  'searchStudentsWithSession' : ActorMethod<
+    [string, string],
+    Array<StudentProfile>
+  >,
+  'setStudentIdForUserProfile' : ActorMethod<[string], undefined>,
+  'updateUserPassword' : ActorMethod<[string, string, string], undefined>,
+  'uploadCircular' : ActorMethod<
+    [string, string, string, string, ExternalBlob, string, string],
+    undefined
+  >,
+  'uploadClassStudyMaterial' : ActorMethod<
+    [
+      string,
+      string,
+      string,
+      bigint,
+      string,
+      string,
+      ExternalBlob,
+      string,
+      string,
+    ],
+    undefined
+  >,
   'uploadStudyMaterial' : ActorMethod<
     [string, string, ExternalBlob, string],
     undefined
   >,
+  'uploadStudyMaterialWithSession' : ActorMethod<
+    [string, string, string, ExternalBlob, string],
+    undefined
+  >,
+  'validateSession' : ActorMethod<[string], [] | [SessionInfo]>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

@@ -2,16 +2,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, Save, ShieldAlert, Upload } from "lucide-react";
+import { Loader2, Save, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AppNav } from "../App";
 import { ExternalBlob } from "../backend";
-import { UserRole } from "../backend.d";
 import { useActor } from "../hooks/useActor";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import { useIsAdmin } from "../hooks/useQueries";
+import { canEdit } from "../hooks/useAuth";
 
 const SETTINGS_KEY = "vkv_school_settings";
 
@@ -60,127 +57,9 @@ interface Props {
   nav: AppNav;
 }
 
-function AdminSetupCard() {
-  const { actor, isFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
-  const { refetch: refetchIsAdmin } = useIsAdmin();
-  const [claimingAdmin, setClaimingAdmin] = useState(false);
-
-  const { data: callerRole, isLoading: roleLoading } = useQuery<UserRole>({
-    queryKey: ["callerRole"],
-    queryFn: async () => {
-      if (!actor) return UserRole.user;
-      return actor.getCallerUserRole();
-    },
-    enabled: !!actor && !isFetching,
-  });
-
-  if (!identity) {
-    return (
-      <Card className="border-blue-500/40 bg-blue-50/50 dark:bg-blue-950/20">
-        <CardContent className="flex items-center gap-3 py-4">
-          <ShieldAlert size={18} className="text-blue-600" />
-          <p className="text-sm text-blue-700 dark:text-blue-300">
-            Please log in to manage admin access and add students.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (roleLoading) {
-    return (
-      <Card>
-        <CardContent
-          className="flex items-center gap-3 py-4"
-          data-ocid="settings.admin_setup.loading_state"
-        >
-          <Loader2 size={16} className="animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            Checking admin access…
-          </span>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (callerRole === UserRole.admin) {
-    return (
-      <Card className="border-green-500/40 bg-green-50/50 dark:bg-green-950/20">
-        <CardContent className="flex items-center gap-3 py-4">
-          <CheckCircle2 size={18} className="text-green-600" />
-          <div>
-            <p className="text-sm font-semibold text-green-700 dark:text-green-400">
-              Admin Access: Active
-            </p>
-            <p className="text-xs text-green-600/80 dark:text-green-500/80">
-              You have full admin privileges. You can add and manage student
-              records.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const handleClaimAdmin = async () => {
-    if (!actor || !identity) {
-      toast.error("Please log in first before claiming admin access.");
-      return;
-    }
-    setClaimingAdmin(true);
-    try {
-      await actor.assignCallerUserRole(identity.getPrincipal(), UserRole.admin);
-      await queryClient.invalidateQueries({ queryKey: ["callerRole"] });
-      await queryClient.invalidateQueries({ queryKey: ["isAdmin"] });
-      await refetchIsAdmin();
-      toast.success("Admin access granted. You can now add students.");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to claim admin access. Try logging in again.");
-    } finally {
-      setClaimingAdmin(false);
-    }
-  };
-
-  return (
-    <Card
-      className="border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20"
-      data-ocid="settings.admin_setup.card"
-    >
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base text-amber-700 dark:text-amber-400">
-          <ShieldAlert size={18} />
-          Admin Access Required
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-amber-700/90 dark:text-amber-300/80">
-          You are currently logged in as a regular user. To add students and
-          manage records, you need admin access.
-        </p>
-        <Button
-          onClick={handleClaimAdmin}
-          disabled={claimingAdmin}
-          className="bg-amber-600 hover:bg-amber-700 text-white"
-          data-ocid="settings.claim_admin.button"
-        >
-          {claimingAdmin ? (
-            <Loader2 size={14} className="mr-2 animate-spin" />
-          ) : (
-            <ShieldAlert size={14} className="mr-2" />
-          )}
-          {claimingAdmin ? "Claiming Access…" : "Claim Admin Access"}
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-export default function SettingsPage({ nav: _nav }: Props) {
+export default function SettingsPage({ nav }: Props) {
   const { actor } = useActor();
-  const { data: isAdmin } = useIsAdmin();
+  const isAdmin = canEdit(nav.session.role);
   const [settings, setSettings] = useState<SchoolSettings>(getSchoolSettings());
   const [uploadingLeft, setUploadingLeft] = useState(false);
   const [uploadingRight, setUploadingRight] = useState(false);
@@ -250,9 +129,6 @@ export default function SettingsPage({ nav: _nav }: Props) {
       </div>
 
       <div className="grid gap-6 max-w-2xl">
-        {/* Admin Setup Section */}
-        <AdminSetupCard />
-
         {/* School Info */}
         <Card>
           <CardHeader>
@@ -265,15 +141,17 @@ export default function SettingsPage({ nav: _nav }: Props) {
                 data-ocid="settings.school_name.input"
                 value={settings.schoolName}
                 onChange={(e) => set("schoolName", e.target.value)}
+                className="h-11"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>District</Label>
                 <Input
                   data-ocid="settings.district.input"
                   value={settings.district}
                   onChange={(e) => set("district", e.target.value)}
+                  className="h-11"
                 />
               </div>
               <div className="space-y-1.5">
@@ -282,6 +160,7 @@ export default function SettingsPage({ nav: _nav }: Props) {
                   data-ocid="settings.state.input"
                   value={settings.state}
                   onChange={(e) => set("state", e.target.value)}
+                  className="h-11"
                 />
               </div>
             </div>
@@ -292,6 +171,7 @@ export default function SettingsPage({ nav: _nav }: Props) {
                 value={settings.principalName}
                 onChange={(e) => set("principalName", e.target.value)}
                 placeholder="Name of the Principal"
+                className="h-11"
               />
             </div>
             <div className="space-y-1.5">
@@ -301,6 +181,7 @@ export default function SettingsPage({ nav: _nav }: Props) {
                 value={settings.academicYear}
                 onChange={(e) => set("academicYear", e.target.value)}
                 placeholder="2025-26"
+                className="h-11"
               />
             </div>
           </CardContent>
@@ -324,7 +205,7 @@ export default function SettingsPage({ nav: _nav }: Props) {
                   className="w-24 h-24 object-contain border rounded"
                 />
               )}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <input
                   ref={fileLeftRef}
                   type="file"
@@ -340,6 +221,7 @@ export default function SettingsPage({ nav: _nav }: Props) {
                   disabled={uploadingLeft || !isAdmin}
                   onClick={() => fileLeftRef.current?.click()}
                   data-ocid="settings.logo_left.upload_button"
+                  className="h-11"
                 >
                   {uploadingLeft ? (
                     <Loader2 size={14} className="mr-2 animate-spin" />
@@ -366,7 +248,7 @@ export default function SettingsPage({ nav: _nav }: Props) {
                   className="w-24 h-24 object-contain border rounded"
                 />
               )}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <input
                   ref={fileRightRef}
                   type="file"
@@ -382,6 +264,7 @@ export default function SettingsPage({ nav: _nav }: Props) {
                   disabled={uploadingRight || !isAdmin}
                   onClick={() => fileRightRef.current?.click()}
                   data-ocid="settings.logo_right.upload_button"
+                  className="h-11"
                 >
                   {uploadingRight ? (
                     <Loader2 size={14} className="mr-2 animate-spin" />
@@ -402,6 +285,7 @@ export default function SettingsPage({ nav: _nav }: Props) {
           onClick={handleSave}
           disabled={saving}
           data-ocid="settings.save.submit_button"
+          className="h-11"
         >
           {saving ? (
             <Loader2 size={14} className="mr-2 animate-spin" />

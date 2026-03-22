@@ -28,7 +28,9 @@ const CLASS_GROUP_COLORS = [
 ];
 
 export default function DashboardPage({ nav }: Props) {
-  const { data: students, isLoading } = useAllStudents();
+  const { data: students, isLoading } = useAllStudents(
+    nav.session.sessionToken,
+  );
 
   const totalStudents = students?.length ?? 0;
 
@@ -79,279 +81,174 @@ export default function DashboardPage({ nav }: Props) {
     },
   ].filter((d) => d.value > 0);
 
-  const GENDER_COLORS = [
-    "oklch(0.48 0.08 200)",
-    "oklch(0.72 0.14 350)",
-    "oklch(0.72 0.19 145)",
-  ];
+  if (isLoading) {
+    return (
+      <div className="space-y-6" data-ocid="dashboard.loading_state">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-64 rounded-xl" />
+      </div>
+    );
+  }
 
   return (
-    <div data-ocid="dashboard.page">
-      <div className="mb-6">
-        <h1 className="font-display font-bold text-2xl text-foreground">
-          Dashboard
-        </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Vivekananda Kendra Vidyalaya Raga — Academic Session {currentSession}
+    <div className="space-y-6" data-ocid="dashboard.page">
+      <div>
+        <h1 className="font-display font-bold text-2xl">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">
+          Welcome, {nav.session.displayName} — {currentSession} at VIVEKANANDA
+          KENDRA VIDYALAYA RAGA
         </p>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card data-ocid="dashboard.total_students.card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-              <Users size={13} /> Total Students
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-16" />
-            ) : (
-              <div className="text-3xl font-display font-bold text-foreground">
-                {totalStudents}
-              </div>
-            )}
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Users size={16} className="text-primary" />
+              <span className="text-xs font-medium text-muted-foreground">
+                Total Students
+              </span>
+            </div>
+            <p className="font-display font-bold text-2xl">{totalStudents}</p>
           </CardContent>
         </Card>
-
-        <Card data-ocid="dashboard.class13.card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-              <GraduationCap size={13} /> Class I–III
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-12" />
-            ) : (
-              <div className="text-3xl font-display font-bold text-primary">
-                {group1}
-              </div>
-            )}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <GraduationCap size={16} className="text-chart-1" />
+              <span className="text-xs font-medium text-muted-foreground">
+                Class I–III
+              </span>
+            </div>
+            <p className="font-display font-bold text-2xl">{group1}</p>
           </CardContent>
         </Card>
-
-        <Card data-ocid="dashboard.class45.card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-              <GraduationCap size={13} /> Class IV–V
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-12" />
-            ) : (
-              <div className="text-3xl font-display font-bold text-primary">
-                {group2}
-              </div>
-            )}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Trophy size={16} className="text-chart-3" />
+              <span className="text-xs font-medium text-muted-foreground">
+                Class IV–V
+              </span>
+            </div>
+            <p className="font-display font-bold text-2xl">{group2}</p>
           </CardContent>
         </Card>
-
-        <Card data-ocid="dashboard.class68.card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-              <Trophy size={13} /> Class VI–VIII
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-12" />
-            ) : (
-              <div className="text-3xl font-display font-bold text-primary">
-                {group3}
-              </div>
-            )}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <UserCheck size={16} className="text-chart-2" />
+              <span className="text-xs font-medium text-muted-foreground">
+                Class VI–VIII
+              </span>
+            </div>
+            <p className="font-display font-bold text-2xl">{group3}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        {/* Students per Class */}
-        <Card className="md:col-span-2">
-          <CardHeader>
+      {/* Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm">Students per Class</CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-48 w-full" />
-            ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart
-                  data={perClassData}
-                  margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="oklch(0.88 0.01 215)"
-                  />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip />
-                  <Bar
-                    dataKey="students"
-                    fill="oklch(0.48 0.08 200)"
-                    radius={[3, 3, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={perClassData}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  className="stroke-border"
+                />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 10 }}
+                  tickFormatter={(v) => v.replace("Class ", "C")}
+                />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip />
+                <Bar
+                  dataKey="students"
+                  fill="oklch(0.48 0.08 200)"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Gender Distribution */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm">Class Group Distribution</CardTitle>
           </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-48 w-full" />
-            ) : totalStudents === 0 ? (
-              <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
-                No students yet
-              </div>
-            ) : (
-              <>
-                <ResponsiveContainer width="100%" height={150}>
-                  <PieChart>
-                    <Pie
-                      data={classData}
-                      dataKey="count"
-                      nameKey="label"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={60}
-                      label={({ percent }) =>
-                        percent > 0 ? `${(percent * 100).toFixed(0)}%` : ""
+          <CardContent className="flex flex-col items-center">
+            <ResponsiveContainer width="100%" height={180}>
+              <PieChart>
+                <Pie
+                  data={classData}
+                  dataKey="count"
+                  nameKey="label"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={70}
+                  label={({ label, percent }) =>
+                    `${label} (${Math.round((percent ?? 0) * 100)}%)`
+                  }
+                  labelLine={false}
+                >
+                  {classData.map((entry, index) => (
+                    <Cell
+                      key={entry.label}
+                      fill={
+                        CLASS_GROUP_COLORS[index % CLASS_GROUP_COLORS.length]
                       }
-                      labelLine={false}
-                    >
-                      {classData.map((entry, index) => (
-                        <Cell
-                          key={entry.label}
-                          fill={
-                            CLASS_GROUP_COLORS[
-                              index % CLASS_GROUP_COLORS.length
-                            ]
-                          }
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v, n) => [v, n]} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex flex-col gap-1 mt-2">
-                  {classData.map((d, i) => (
-                    <div
-                      key={d.label}
-                      className="flex items-center gap-2 text-xs"
-                    >
-                      <div
-                        className="w-3 h-3 rounded-full shrink-0"
-                        style={{ background: CLASS_GROUP_COLORS[i] }}
-                      />
-                      <span className="text-muted-foreground">{d.label}:</span>
-                      <span className="font-medium">{d.count}</span>
-                    </div>
+                    />
                   ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex flex-wrap gap-3 mt-2">
+              {classData.map((d, i) => (
+                <div key={d.label} className="flex items-center gap-1.5">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ background: CLASS_GROUP_COLORS[i] }}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {d.label}: {d.count}
+                  </span>
                 </div>
-              </>
-            )}
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Gender + Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Gender */}
+      {/* Gender breakdown */}
+      {genderData.length > 0 && (
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm">Gender Distribution</CardTitle>
           </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-40 w-full" />
-            ) : genderData.length === 0 ? (
-              <div className="h-40 flex items-center justify-center text-muted-foreground text-sm">
-                No data
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={160}>
-                <PieChart>
-                  <Pie
-                    data={genderData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={60}
-                    label={({ name, value }) => `${name}: ${value}`}
-                  >
-                    {genderData.map((gEntry, index) => (
-                      <Cell
-                        key={gEntry.name}
-                        fill={GENDER_COLORS[index % GENDER_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
+          <CardContent className="flex flex-wrap gap-3">
+            {genderData.map((d) => (
+              <Badge
+                key={d.name}
+                variant="secondary"
+                className="text-sm px-3 py-1"
+              >
+                {d.name}: {d.value}
+              </Badge>
+            ))}
           </CardContent>
         </Card>
-
-        {/* Quick Nav */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <button
-              type="button"
-              data-ocid="dashboard.students_13.button"
-              onClick={() => nav.navigate("students")}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-border hover:bg-accent transition-colors text-sm"
-            >
-              <span className="font-medium">Class I – III Students</span>
-              <Badge variant="secondary">{group1}</Badge>
-            </button>
-            <button
-              type="button"
-              data-ocid="dashboard.students_45.button"
-              onClick={() => nav.navigate("students")}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-border hover:bg-accent transition-colors text-sm"
-            >
-              <span className="font-medium">Class IV – V Students</span>
-              <Badge variant="secondary">{group2}</Badge>
-            </button>
-            <button
-              type="button"
-              data-ocid="dashboard.students_68.button"
-              onClick={() => nav.navigate("students")}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-border hover:bg-accent transition-colors text-sm"
-            >
-              <span className="font-medium">Class VI – VIII Students</span>
-              <Badge variant="secondary">{group3}</Badge>
-            </button>
-            <button
-              type="button"
-              data-ocid="dashboard.attendance.button"
-              onClick={() => nav.navigate("students")}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-border hover:bg-accent transition-colors text-sm"
-            >
-              <span className="font-medium flex items-center gap-2">
-                <UserCheck size={14} />
-                View All Students
-              </span>
-              <Badge variant="outline">{totalStudents} total</Badge>
-            </button>
-          </CardContent>
-        </Card>
-      </div>
+      )}
     </div>
   );
 }

@@ -30,7 +30,7 @@ import {
   Save,
   Trash2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AppNav } from "../App";
 import { ExternalBlob } from "../backend";
@@ -45,9 +45,9 @@ import type {
   UpperClassMarks,
 } from "../backend.d";
 import { useActor } from "../hooks/useActor";
+import { type AuthSession, canEdit } from "../hooks/useAuth";
 import {
   useActivityRecords,
-  useIsAdmin,
   useMonthlyAttendance,
   useReportCards,
   useSaveActivityRecord,
@@ -95,6 +95,19 @@ interface Props {
 }
 
 // ─────────────────────────────────────────
+// Page-level context for session
+// ─────────────────────────────────────────
+interface StudentPageCtx {
+  sessionToken: string;
+  canEditData: boolean;
+}
+const StudentPageContext = createContext<StudentPageCtx>({
+  sessionToken: "",
+  canEditData: false,
+});
+const useStudentPage = () => useContext(StudentPageContext);
+
+// ─────────────────────────────────────────
 // Grade badge helper
 // ─────────────────────────────────────────
 function GradeBadge({ grade }: { grade: string }) {
@@ -118,14 +131,12 @@ function GradeBadge({ grade }: { grade: string }) {
 // ─────────────────────────────────────────
 // PROFILE TAB
 // ─────────────────────────────────────────
-function ProfileTab({
-  profile,
-  isAdmin,
-}: { profile: StudentProfile; isAdmin: boolean }) {
+function ProfileTab({ profile }: { profile: StudentProfile }) {
+  const { sessionToken, canEditData: isAdmin } = useStudentPage();
   const [form, setForm] = useState<StudentProfile>(profile);
   const [photoUrl, setPhotoUrl] = useState<string>("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const saveMutation = useSaveStudentProfile();
+  const saveMutation = useSaveStudentProfile(sessionToken);
   const { actor } = useActor();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -493,8 +504,12 @@ function MarksTab({
   studentId,
   classLevel,
 }: { studentId: string; classLevel: number }) {
-  const { data: marksData, isLoading } = useSubjectMarks(studentId);
-  const saveMutation = useSaveSubjectMarks(studentId);
+  const { sessionToken } = useStudentPage();
+  const { data: marksData, isLoading } = useSubjectMarks(
+    sessionToken,
+    studentId,
+  );
+  const saveMutation = useSaveSubjectMarks(sessionToken, studentId);
   const subjects = getSubjectsForClass(classLevel);
   const lower = isLowerClass(classLevel);
 
@@ -611,70 +626,77 @@ function MarksTab({
               Written Tests &amp; Comprehensive Tests (50 marks each)
             </CardTitle>
           </CardHeader>
-          <CardContent className="overflow-x-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>WT1</TableHead>
-                  <TableHead>WT2</TableHead>
-                  <TableHead>WT3</TableHead>
-                  <TableHead>WT4</TableHead>
-                  <TableHead>CT1</TableHead>
-                  <TableHead>CT2</TableHead>
-                  <TableHead>CT3</TableHead>
-                  <TableHead>CT4</TableHead>
-                  <TableHead>Total /400</TableHead>
-                  <TableHead>%</TableHead>
-                  <TableHead>Grade</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {marks.map((m, idx) => {
-                  if (m.__kind__ !== "lowerClass") return null;
-                  const lm = m.lowerClass;
-                  return (
-                    <TableRow key={lm.subjectName}>
-                      <TableCell className="font-medium">
-                        {lm.subjectName}
-                      </TableCell>
-                      {(
-                        [
-                          "writtenTest1",
-                          "writtenTest2",
-                          "writtenTest3",
-                          "writtenTest4",
-                          "comprehensiveTest1",
-                          "comprehensiveTest2",
-                          "comprehensiveTest3",
-                          "comprehensiveTest4",
-                        ] as (keyof LowerClassMarks)[]
-                      ).map((field) => (
-                        <TableCell key={field} className="p-1">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={50}
-                            value={(lm[field] as number) || ""}
-                            onChange={(e) =>
-                              updateLower(idx, field, Number(e.target.value))
-                            }
-                            className="w-14 h-7 text-sm"
-                          />
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>WT1</TableHead>
+                    <TableHead>WT2</TableHead>
+                    <TableHead>WT3</TableHead>
+                    <TableHead>WT4</TableHead>
+                    <TableHead>CT1</TableHead>
+                    <TableHead>CT2</TableHead>
+                    <TableHead>CT3</TableHead>
+                    <TableHead>CT4</TableHead>
+                    <TableHead>Total /400</TableHead>
+                    <TableHead>%</TableHead>
+                    <TableHead>Grade</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {marks.map((m, idx) => {
+                    if (m.__kind__ !== "lowerClass") return null;
+                    const lm = m.lowerClass;
+                    return (
+                      <TableRow key={lm.subjectName}>
+                        <TableCell className="font-medium">
+                          {lm.subjectName}
                         </TableCell>
-                      ))}
-                      <TableCell className="font-semibold">
-                        {lm.totalMarks}
-                      </TableCell>
-                      <TableCell>{Math.round(lm.percentage)}</TableCell>
-                      <TableCell>
-                        <GradeBadge grade={lm.grade} />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        {(
+                          [
+                            "writtenTest1",
+                            "writtenTest2",
+                            "writtenTest3",
+                            "writtenTest4",
+                            "comprehensiveTest1",
+                            "comprehensiveTest2",
+                            "comprehensiveTest3",
+                            "comprehensiveTest4",
+                          ] as (keyof LowerClassMarks)[]
+                        ).map((field) => (
+                          <TableCell key={field} className="p-1">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={50}
+                              value={(lm[field] as number) || ""}
+                              onChange={(e) =>
+                                updateLower(idx, field, Number(e.target.value))
+                              }
+                              onInput={(e) => {
+                                const t = e.currentTarget as HTMLInputElement;
+                                if (t.value.length > 2)
+                                  t.value = t.value.slice(0, 2);
+                              }}
+                              className="w-14 h-7 text-sm"
+                            />
+                          </TableCell>
+                        ))}
+                        <TableCell className="font-semibold">
+                          {lm.totalMarks}
+                        </TableCell>
+                        <TableCell>{Math.round(lm.percentage)}</TableCell>
+                        <TableCell>
+                          <GradeBadge grade={lm.grade} />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -682,128 +704,162 @@ function MarksTab({
           <CardHeader>
             <CardTitle className="text-sm">Term Marks Entry</CardTitle>
           </CardHeader>
-          <CardContent className="overflow-x-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Subject</TableHead>
-                  <TableHead className="bg-blue-50 dark:bg-blue-950 text-xs">
-                    PT1 /50
-                  </TableHead>
-                  <TableHead className="bg-blue-50 dark:bg-blue-950 text-xs">
-                    NB1 /5
-                  </TableHead>
-                  <TableHead className="bg-blue-50 dark:bg-blue-950 text-xs">
-                    SE1 /5
-                  </TableHead>
-                  <TableHead className="bg-blue-50 dark:bg-blue-950 text-xs">
-                    Term1 /80
-                  </TableHead>
-                  <TableHead className="bg-blue-100 dark:bg-blue-900 font-bold">
-                    T1 Total
-                  </TableHead>
-                  <TableHead className="bg-orange-50 dark:bg-orange-950 text-xs">
-                    PT2 /50
-                  </TableHead>
-                  <TableHead className="bg-orange-50 dark:bg-orange-950 text-xs">
-                    NB2 /5
-                  </TableHead>
-                  <TableHead className="bg-orange-50 dark:bg-orange-950 text-xs">
-                    SE2 /5
-                  </TableHead>
-                  <TableHead className="bg-orange-50 dark:bg-orange-950 text-xs">
-                    Term2 /80
-                  </TableHead>
-                  <TableHead className="bg-orange-100 dark:bg-orange-900 font-bold">
-                    T2 Total
-                  </TableHead>
-                  <TableHead className="bg-primary/10">Final %</TableHead>
-                  <TableHead>Grade</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {marks.map((m, idx) => {
-                  if (m.__kind__ !== "upperClass") return null;
-                  const um = m.upperClass;
-                  // Term1 group: PT1, NB1, SE1, Term1Exam | Term2 group: PT2, NB2, SE2, Term2Exam
-                  const term1Fields: (keyof UpperClassMarks)[] = [
-                    "pt1",
-                    "nb1",
-                    "se1",
-                    "term1Exam",
-                  ];
-                  const term2Fields: (keyof UpperClassMarks)[] = [
-                    "pt2",
-                    "nb2",
-                    "se2",
-                    "term2Exam",
-                  ];
-                  const maxVals: Record<string, number> = {
-                    pt1: 50,
-                    pt2: 50,
-                    term1Exam: 80,
-                    nb1: 5,
-                    se1: 5,
-                    term2Exam: 80,
-                    nb2: 5,
-                    se2: 5,
-                  };
-                  return (
-                    <TableRow key={um.subjectName}>
-                      <TableCell className="font-medium">
-                        {um.subjectName}
-                      </TableCell>
-                      {term1Fields.map((field) => (
-                        <TableCell
-                          key={field}
-                          className="p-1 bg-blue-50/50 dark:bg-blue-950/30"
-                        >
-                          <Input
-                            type="number"
-                            min={0}
-                            max={maxVals[field]}
-                            value={(um[field] as number) || ""}
-                            onChange={(e) =>
-                              updateUpper(idx, field, Number(e.target.value))
-                            }
-                            className="w-14 h-7 text-sm"
-                          />
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Subject</TableHead>
+                    <TableHead className="bg-blue-50 dark:bg-blue-950 text-xs">
+                      PT1 /50
+                    </TableHead>
+                    <TableHead className="bg-blue-50 dark:bg-blue-950 text-xs">
+                      NB1 /5
+                    </TableHead>
+                    <TableHead className="bg-blue-50 dark:bg-blue-950 text-xs">
+                      SE1 /5
+                    </TableHead>
+                    <TableHead className="bg-blue-50 dark:bg-blue-950 text-xs">
+                      Term1 /80
+                    </TableHead>
+                    <TableHead className="bg-blue-100 dark:bg-blue-900 font-bold">
+                      T1 Total
+                    </TableHead>
+                    <TableHead className="bg-orange-50 dark:bg-orange-950 text-xs">
+                      PT2 /50
+                    </TableHead>
+                    <TableHead className="bg-orange-50 dark:bg-orange-950 text-xs">
+                      NB2 /5
+                    </TableHead>
+                    <TableHead className="bg-orange-50 dark:bg-orange-950 text-xs">
+                      SE2 /5
+                    </TableHead>
+                    <TableHead className="bg-orange-50 dark:bg-orange-950 text-xs">
+                      Term2 /80
+                    </TableHead>
+                    <TableHead className="bg-orange-100 dark:bg-orange-900 font-bold">
+                      T2 Total
+                    </TableHead>
+                    <TableHead className="bg-primary/10">Final %</TableHead>
+                    <TableHead>Grade</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {marks.map((m, idx) => {
+                    if (m.__kind__ !== "upperClass") return null;
+                    const um = m.upperClass;
+                    // Term1 group: PT1, NB1, SE1, Term1Exam | Term2 group: PT2, NB2, SE2, Term2Exam
+                    const term1Fields: (keyof UpperClassMarks)[] = [
+                      "pt1",
+                      "nb1",
+                      "se1",
+                      "term1Exam",
+                    ];
+                    const term2Fields: (keyof UpperClassMarks)[] = [
+                      "pt2",
+                      "nb2",
+                      "se2",
+                      "term2Exam",
+                    ];
+                    const maxVals: Record<string, number> = {
+                      pt1: 50,
+                      pt2: 50,
+                      term1Exam: 80,
+                      nb1: 5,
+                      se1: 5,
+                      term2Exam: 80,
+                      nb2: 5,
+                      se2: 5,
+                    };
+                    return (
+                      <TableRow key={um.subjectName}>
+                        <TableCell className="font-medium">
+                          {um.subjectName}
                         </TableCell>
-                      ))}
-                      <TableCell className="bg-blue-100 dark:bg-blue-900 font-semibold text-sm">
-                        {Math.round(um.term1Total)}
-                      </TableCell>
-                      {term2Fields.map((field) => (
-                        <TableCell
-                          key={field}
-                          className="p-1 bg-orange-50/50 dark:bg-orange-950/30"
-                        >
-                          <Input
-                            type="number"
-                            min={0}
-                            max={maxVals[field]}
-                            value={(um[field] as number) || ""}
-                            onChange={(e) =>
-                              updateUpper(idx, field, Number(e.target.value))
-                            }
-                            className="w-14 h-7 text-sm"
-                          />
+                        {term1Fields.map((field) => (
+                          <TableCell
+                            key={field}
+                            className="p-1 bg-blue-50/50 dark:bg-blue-950/30"
+                          >
+                            <Input
+                              type="number"
+                              min={0}
+                              max={maxVals[field]}
+                              value={(um[field] as number) || ""}
+                              onChange={(e) =>
+                                updateUpper(idx, field, Number(e.target.value))
+                              }
+                              onInput={(e) => {
+                                const t = e.currentTarget as HTMLInputElement;
+                                const digitMap: Record<string, number> = {
+                                  pt1: 2,
+                                  pt2: 2,
+                                  nb1: 1,
+                                  se1: 1,
+                                  nb2: 1,
+                                  se2: 1,
+                                  term1Exam: 3,
+                                  term2Exam: 3,
+                                };
+                                const d = digitMap[field] ?? 2;
+                                if (t.value.length > d)
+                                  t.value = t.value.slice(0, d);
+                              }}
+                              className="w-14 h-7 text-sm"
+                            />
+                          </TableCell>
+                        ))}
+                        <TableCell className="bg-blue-100 dark:bg-blue-900 font-semibold text-sm">
+                          {Math.round(um.term1Total)}
                         </TableCell>
-                      ))}
-                      <TableCell className="bg-orange-100 dark:bg-orange-900 font-semibold text-sm">
-                        {Math.round(um.term2Total)}
-                      </TableCell>
-                      <TableCell className="bg-primary/10 font-bold">
-                        {Math.round(um.finalPercentage)}
-                      </TableCell>
-                      <TableCell>
-                        <GradeBadge grade={um.grade} />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        {term2Fields.map((field) => (
+                          <TableCell
+                            key={field}
+                            className="p-1 bg-orange-50/50 dark:bg-orange-950/30"
+                          >
+                            <Input
+                              type="number"
+                              min={0}
+                              max={maxVals[field]}
+                              value={(um[field] as number) || ""}
+                              onChange={(e) =>
+                                updateUpper(idx, field, Number(e.target.value))
+                              }
+                              onInput={(e) => {
+                                const t = e.currentTarget as HTMLInputElement;
+                                const digitMap: Record<string, number> = {
+                                  pt1: 2,
+                                  pt2: 2,
+                                  nb1: 1,
+                                  se1: 1,
+                                  nb2: 1,
+                                  se2: 1,
+                                  term1Exam: 3,
+                                  term2Exam: 3,
+                                };
+                                const d = digitMap[field] ?? 2;
+                                if (t.value.length > d)
+                                  t.value = t.value.slice(0, d);
+                              }}
+                              className="w-14 h-7 text-sm"
+                            />
+                          </TableCell>
+                        ))}
+                        <TableCell className="bg-orange-100 dark:bg-orange-900 font-semibold text-sm">
+                          {Math.round(um.term2Total)}
+                        </TableCell>
+                        <TableCell className="bg-primary/10 font-bold">
+                          {Math.round(um.finalPercentage)}
+                        </TableCell>
+                        <TableCell>
+                          <GradeBadge grade={um.grade} />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -826,8 +882,12 @@ function MarksTab({
 // ATTENDANCE TAB
 // ─────────────────────────────────────────
 function AttendanceTab({ studentId }: { studentId: string }) {
-  const { data: attendance, isLoading } = useMonthlyAttendance(studentId);
-  const saveMutation = useSaveAttendance(studentId);
+  const { sessionToken } = useStudentPage();
+  const { data: attendance, isLoading } = useMonthlyAttendance(
+    sessionToken,
+    studentId,
+  );
+  const saveMutation = useSaveAttendance(sessionToken, studentId);
   const [month, setMonth] = useState(MONTHS[0]);
   const [present, setPresent] = useState("");
   const [totalDays, setTotalDays] = useState("");
@@ -941,37 +1001,41 @@ function AttendanceTab({ studentId }: { studentId: string }) {
             <CardTitle className="text-sm">Monthly Record</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Month</TableHead>
-                  <TableHead>Session</TableHead>
-                  <TableHead>Present</TableHead>
-                  <TableHead>Total Days</TableHead>
-                  <TableHead>%</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(attendance ?? []).map((a, i) => (
-                  <TableRow
-                    key={`${a.month}-${a.session}-${i}`}
-                    data-ocid={`attendance.item.${i + 1}`}
-                  >
-                    <TableCell>{a.month}</TableCell>
-                    <TableCell>{a.session}</TableCell>
-                    <TableCell>{String(a.present)}</TableCell>
-                    <TableCell>{String(a.totalDays)}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={a.percentage >= 75 ? "default" : "destructive"}
-                      >
-                        {a.percentage.toFixed(1)}%
-                      </Badge>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Month</TableHead>
+                    <TableHead>Session</TableHead>
+                    <TableHead>Present</TableHead>
+                    <TableHead>Total Days</TableHead>
+                    <TableHead>%</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {(attendance ?? []).map((a, i) => (
+                    <TableRow
+                      key={`${a.month}-${a.session}-${i}`}
+                      data-ocid={`attendance.item.${i + 1}`}
+                    >
+                      <TableCell>{a.month}</TableCell>
+                      <TableCell>{a.session}</TableCell>
+                      <TableCell>{String(a.present)}</TableCell>
+                      <TableCell>{String(a.totalDays)}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            a.percentage >= 75 ? "default" : "destructive"
+                          }
+                        >
+                          {a.percentage.toFixed(1)}%
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
             <div className="mt-3 p-3 bg-muted rounded-lg flex gap-6 text-sm">
               <span>
                 Total Present: <strong>{totalPresent}</strong>
@@ -994,8 +1058,9 @@ function AttendanceTab({ studentId }: { studentId: string }) {
 // SPORTS TAB
 // ─────────────────────────────────────────
 function SportsTab({ studentId }: { studentId: string }) {
-  const { data: sports, isLoading } = useSportsRecords(studentId);
-  const saveMutation = useSaveSportsRecord(studentId);
+  const { sessionToken } = useStudentPage();
+  const { data: sports, isLoading } = useSportsRecords(sessionToken, studentId);
+  const saveMutation = useSaveSportsRecord(sessionToken, studentId);
   const [form, setForm] = useState<SportsRecord>({
     studentId,
     game: "",
@@ -1112,37 +1177,39 @@ function SportsTab({ studentId }: { studentId: string }) {
       {(sports ?? []).length > 0 && (
         <Card>
           <CardContent className="pt-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Game</TableHead>
-                  <TableHead>Event</TableHead>
-                  <TableHead>Level</TableHead>
-                  <TableHead>Position</TableHead>
-                  <TableHead>Session</TableHead>
-                  <TableHead>Remarks</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(sports ?? []).map((s, i) => (
-                  <TableRow
-                    key={s.entryId || i}
-                    data-ocid={`sports.item.${i + 1}`}
-                  >
-                    <TableCell>{i + 1}</TableCell>
-                    <TableCell>{s.game}</TableCell>
-                    <TableCell>{s.event}</TableCell>
-                    <TableCell>{s.level}</TableCell>
-                    <TableCell>{s.position}</TableCell>
-                    <TableCell>{s.session}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {s.remarks}
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Game</TableHead>
+                    <TableHead>Event</TableHead>
+                    <TableHead>Level</TableHead>
+                    <TableHead>Position</TableHead>
+                    <TableHead>Session</TableHead>
+                    <TableHead>Remarks</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {(sports ?? []).map((s, i) => (
+                    <TableRow
+                      key={s.entryId || i}
+                      data-ocid={`sports.item.${i + 1}`}
+                    >
+                      <TableCell>{i + 1}</TableCell>
+                      <TableCell>{s.game}</TableCell>
+                      <TableCell>{s.event}</TableCell>
+                      <TableCell>{s.level}</TableCell>
+                      <TableCell>{s.position}</TableCell>
+                      <TableCell>{s.session}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {s.remarks}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -1154,8 +1221,12 @@ function SportsTab({ studentId }: { studentId: string }) {
 // ACTIVITIES TAB
 // ─────────────────────────────────────────
 function ActivitiesTab({ studentId }: { studentId: string }) {
-  const { data: activities, isLoading } = useActivityRecords(studentId);
-  const saveMutation = useSaveActivityRecord(studentId);
+  const { sessionToken } = useStudentPage();
+  const { data: activities, isLoading } = useActivityRecords(
+    sessionToken,
+    studentId,
+  );
+  const saveMutation = useSaveActivityRecord(sessionToken, studentId);
   const [form, setForm] = useState<ActivityRecord>({
     studentId,
     activityType: "Cultural",
@@ -1273,37 +1344,39 @@ function ActivitiesTab({ studentId }: { studentId: string }) {
       {coActivities.length > 0 && (
         <Card>
           <CardContent className="pt-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Grade</TableHead>
-                  <TableHead>Session</TableHead>
-                  <TableHead>Remarks</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {coActivities.map((a, i) => (
-                  <TableRow
-                    key={`${a.activityType}-${a.description.slice(0, 20)}-${i}`}
-                    data-ocid={`activities.item.${i + 1}`}
-                  >
-                    <TableCell>{i + 1}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{a.activityType}</Badge>
-                    </TableCell>
-                    <TableCell>{a.description}</TableCell>
-                    <TableCell>{a.grade}</TableCell>
-                    <TableCell>{a.session}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {a.remarks}
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Grade</TableHead>
+                    <TableHead>Session</TableHead>
+                    <TableHead>Remarks</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {coActivities.map((a, i) => (
+                    <TableRow
+                      key={`${a.activityType}-${a.description.slice(0, 20)}-${i}`}
+                      data-ocid={`activities.item.${i + 1}`}
+                    >
+                      <TableCell>{i + 1}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{a.activityType}</Badge>
+                      </TableCell>
+                      <TableCell>{a.description}</TableCell>
+                      <TableCell>{a.grade}</TableCell>
+                      <TableCell>{a.session}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {a.remarks}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -1318,8 +1391,12 @@ function DailyRecordsTab({
   studentId,
   classLevel,
 }: { studentId: string; classLevel: number }) {
-  const { data: activities, isLoading } = useActivityRecords(studentId);
-  const saveMutation = useSaveActivityRecord(studentId);
+  const { sessionToken } = useStudentPage();
+  const { data: activities, isLoading } = useActivityRecords(
+    sessionToken,
+    studentId,
+  );
+  const saveMutation = useSaveActivityRecord(sessionToken, studentId);
   const subjects = getSubjectsForClass(classLevel);
 
   const [form, setForm] = useState({
@@ -1479,64 +1556,68 @@ function DailyRecordsTab({
       {dailyRecords.length > 0 && (
         <Card>
           <CardContent className="pt-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Marks</TableHead>
-                  <TableHead>%</TableHead>
-                  <TableHead>Remarks</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dailyRecords.map((a, i) => {
-                  const marksStr = a.remarks.split(" — ")[0];
-                  const [obtained, total] = marksStr.split("/").map(Number);
-                  const pct =
-                    total > 0 ? ((obtained / total) * 100).toFixed(0) : "—";
-                  const extraRemarks = a.remarks.includes(" — ")
-                    ? a.remarks.split(" — ").slice(1).join(" — ")
-                    : "";
-                  return (
-                    <TableRow
-                      key={`${a.description}-${a.activityType}-${a.grade}-${i}`}
-                      data-ocid={`daily_records.item.${i + 1}`}
-                    >
-                      <TableCell>{i + 1}</TableCell>
-                      <TableCell>{a.description}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {a.activityType === "classTest"
-                            ? "Class Test"
-                            : a.activityType === "assignment"
-                              ? "Assignment"
-                              : "Other"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{a.grade}</TableCell>
-                      <TableCell className="font-medium">{marksStr}</TableCell>
-                      <TableCell>
-                        <span
-                          className={
-                            Number(pct) >= 50
-                              ? "text-success font-semibold"
-                              : "text-destructive font-semibold"
-                          }
-                        >
-                          {pct}%
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {extraRemarks}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Marks</TableHead>
+                    <TableHead>%</TableHead>
+                    <TableHead>Remarks</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dailyRecords.map((a, i) => {
+                    const marksStr = a.remarks.split(" — ")[0];
+                    const [obtained, total] = marksStr.split("/").map(Number);
+                    const pct =
+                      total > 0 ? ((obtained / total) * 100).toFixed(0) : "—";
+                    const extraRemarks = a.remarks.includes(" — ")
+                      ? a.remarks.split(" — ").slice(1).join(" — ")
+                      : "";
+                    return (
+                      <TableRow
+                        key={`${a.description}-${a.activityType}-${a.grade}-${i}`}
+                        data-ocid={`daily_records.item.${i + 1}`}
+                      >
+                        <TableCell>{i + 1}</TableCell>
+                        <TableCell>{a.description}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {a.activityType === "classTest"
+                              ? "Class Test"
+                              : a.activityType === "assignment"
+                                ? "Assignment"
+                                : "Other"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{a.grade}</TableCell>
+                        <TableCell className="font-medium">
+                          {marksStr}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={
+                              Number(pct) >= 50
+                                ? "text-success font-semibold"
+                                : "text-destructive font-semibold"
+                            }
+                          >
+                            {pct}%
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {extraRemarks}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -1579,11 +1660,12 @@ function ReportCardTab({
   profile: StudentProfile;
   sportsRecords: SportsRecord[];
 }) {
-  const { data: cards, isLoading } = useReportCards(studentId);
-  const { data: marksData } = useSubjectMarks(studentId);
-  const { data: attendance } = useMonthlyAttendance(studentId);
+  const { sessionToken } = useStudentPage();
+  const { data: cards, isLoading } = useReportCards(sessionToken, studentId);
+  const { data: marksData } = useSubjectMarks(sessionToken, studentId);
+  const { data: attendance } = useMonthlyAttendance(sessionToken, studentId);
   const { actor } = useActor();
-  const saveMutation = useSaveReportCard(studentId);
+  const saveMutation = useSaveReportCard(sessionToken, studentId);
   const printRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState<ReportCard>(emptyReport(studentId));
   const [photoUrl, setPhotoUrl] = useState("");
@@ -1930,9 +2012,12 @@ function Field({
 // MAIN PAGE
 // ─────────────────────────────────────────
 export default function StudentDetailPage({ nav, studentId }: Props) {
-  const { data: profile, isLoading } = useStudentProfile(studentId);
-  const { data: sports } = useSportsRecords(studentId);
-  const { data: isAdminData } = useIsAdmin();
+  const { session } = nav;
+  const { data: profile, isLoading } = useStudentProfile(
+    session.sessionToken,
+    studentId,
+  );
+  const { data: sports } = useSportsRecords(session.sessionToken, studentId);
 
   if (isLoading) {
     return (
@@ -1963,97 +2048,101 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
   }
 
   const classLevel = Number(profile.classLevel);
-  const isAdmin = isAdminData ?? false;
+  const isAdmin = canEdit(session.role);
 
   return (
-    <div data-ocid="student_detail.page">
-      <div className="flex items-start gap-4 mb-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => nav.navigate("students")}
-          className="shrink-0 mt-0.5"
-          data-ocid="student_detail.back.button"
-        >
-          <ArrowLeft size={15} className="mr-1" /> Back
-        </Button>
-        <div>
-          <h1 className="font-display font-bold text-xl">{profile.name}</h1>
-          <div className="flex items-center gap-2 flex-wrap mt-1">
-            <Badge variant="outline">
-              Class {toRoman(Number(profile.classLevel))}
-            </Badge>
-            {profile.section && (
-              <Badge variant="outline">Section {profile.section}</Badge>
-            )}
-            <Badge variant="secondary">Roll No. {profile.rollNo}</Badge>
-            <span className="text-xs text-muted-foreground">
-              Adm. No: {profile.studentId}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              Session: {profile.session}
-            </span>
+    <StudentPageContext.Provider
+      value={{ sessionToken: session.sessionToken, canEditData: isAdmin }}
+    >
+      <div data-ocid="student_detail.page">
+        <div className="flex items-start gap-4 mb-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => nav.navigate("students")}
+            className="shrink-0 mt-0.5"
+            data-ocid="student_detail.back.button"
+          >
+            <ArrowLeft size={15} className="mr-1" /> Back
+          </Button>
+          <div>
+            <h1 className="font-display font-bold text-xl">{profile.name}</h1>
+            <div className="flex items-center gap-2 flex-wrap mt-1">
+              <Badge variant="outline">
+                Class {toRoman(Number(profile.classLevel))}
+              </Badge>
+              {profile.section && (
+                <Badge variant="outline">Section {profile.section}</Badge>
+              )}
+              <Badge variant="secondary">Roll No. {profile.rollNo}</Badge>
+              <span className="text-xs text-muted-foreground">
+                Adm. No: {profile.studentId}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Session: {profile.session}
+              </span>
+            </div>
           </div>
         </div>
+
+        <Tabs defaultValue="profile">
+          <TabsList className="flex flex-wrap h-auto gap-1 mb-4 overflow-x-auto">
+            <TabsTrigger value="profile" data-ocid="student_detail.profile.tab">
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="marks" data-ocid="student_detail.marks.tab">
+              Marks
+            </TabsTrigger>
+            <TabsTrigger
+              value="attendance"
+              data-ocid="student_detail.attendance.tab"
+            >
+              Attendance
+            </TabsTrigger>
+            <TabsTrigger value="sports" data-ocid="student_detail.sports.tab">
+              Sports
+            </TabsTrigger>
+            <TabsTrigger
+              value="activities"
+              data-ocid="student_detail.activities.tab"
+            >
+              Activities
+            </TabsTrigger>
+            <TabsTrigger value="daily" data-ocid="student_detail.daily.tab">
+              Daily Records
+            </TabsTrigger>
+            <TabsTrigger value="report" data-ocid="student_detail.report.tab">
+              Report Card
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="profile">
+            <ProfileTab profile={profile} />
+          </TabsContent>
+          <TabsContent value="marks">
+            <MarksTab studentId={studentId} classLevel={classLevel} />
+          </TabsContent>
+          <TabsContent value="attendance">
+            <AttendanceTab studentId={studentId} />
+          </TabsContent>
+          <TabsContent value="sports">
+            <SportsTab studentId={studentId} />
+          </TabsContent>
+          <TabsContent value="activities">
+            <ActivitiesTab studentId={studentId} />
+          </TabsContent>
+          <TabsContent value="daily">
+            <DailyRecordsTab studentId={studentId} classLevel={classLevel} />
+          </TabsContent>
+          <TabsContent value="report">
+            <ReportCardTab
+              studentId={studentId}
+              profile={profile}
+              sportsRecords={sports ?? []}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs defaultValue="profile">
-        <TabsList className="flex flex-wrap h-auto gap-1 mb-4">
-          <TabsTrigger value="profile" data-ocid="student_detail.profile.tab">
-            Profile
-          </TabsTrigger>
-          <TabsTrigger value="marks" data-ocid="student_detail.marks.tab">
-            Marks
-          </TabsTrigger>
-          <TabsTrigger
-            value="attendance"
-            data-ocid="student_detail.attendance.tab"
-          >
-            Attendance
-          </TabsTrigger>
-          <TabsTrigger value="sports" data-ocid="student_detail.sports.tab">
-            Sports
-          </TabsTrigger>
-          <TabsTrigger
-            value="activities"
-            data-ocid="student_detail.activities.tab"
-          >
-            Activities
-          </TabsTrigger>
-          <TabsTrigger value="daily" data-ocid="student_detail.daily.tab">
-            Daily Records
-          </TabsTrigger>
-          <TabsTrigger value="report" data-ocid="student_detail.report.tab">
-            Report Card
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profile">
-          <ProfileTab profile={profile} isAdmin={isAdmin} />
-        </TabsContent>
-        <TabsContent value="marks">
-          <MarksTab studentId={studentId} classLevel={classLevel} />
-        </TabsContent>
-        <TabsContent value="attendance">
-          <AttendanceTab studentId={studentId} />
-        </TabsContent>
-        <TabsContent value="sports">
-          <SportsTab studentId={studentId} />
-        </TabsContent>
-        <TabsContent value="activities">
-          <ActivitiesTab studentId={studentId} />
-        </TabsContent>
-        <TabsContent value="daily">
-          <DailyRecordsTab studentId={studentId} classLevel={classLevel} />
-        </TabsContent>
-        <TabsContent value="report">
-          <ReportCardTab
-            studentId={studentId}
-            profile={profile}
-            sportsRecords={sports ?? []}
-          />
-        </TabsContent>
-      </Tabs>
-    </div>
+    </StudentPageContext.Provider>
   );
 }
