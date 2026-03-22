@@ -11,9 +11,9 @@ import Iter "mo:core/Iter";
 import MixinStorage "blob-storage/Mixin";
 import Random "mo:core/Random";
 import Array "mo:core/Array";
-import Migration "migration";
 
-(with migration = Migration.run)
+
+
 actor {
   include MixinStorage();
 
