@@ -1,22 +1,17 @@
 # TrackMyClass
 
 ## Current State
-User accounts in non-stable Map, lost on upgrades. Developer re-added at init but may fail.
+postupgrade only adds developer if absent. If stale version in stableUsers, login breaks after upgrade.
 
 ## Requested Changes (Diff)
-
 ### Add
-- stable var backing for users
-- preupgrade/postupgrade hooks
-
-### Modify
-- loginUser: hardcoded developer fallback
-
-### Remove
 - Nothing
+### Modify
+- postupgrade: always overwrite developer account with correct credentials
+- loginUser: always upsert developer before password check
+### Remove
+- containsKey guard on developer account creation
 
 ## Implementation Plan
-1. Add stable var stableUsers
-2. preupgrade saves users
-3. postupgrade restores users and ensures developer exists
-4. loginUser has developer fallback
+1. Fix postupgrade to unconditionally upsert developer account
+2. Fix loginUser to unconditionally upsert developer account

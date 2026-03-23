@@ -277,17 +277,15 @@ actor {
     assignedClass : ?Nat;
     displayName : Text;
   } {
-    // Ensure developer account always exists
-    if (not users.containsKey("developer")) {
-      users.add("developer", {
-        username = "developer";
-        password = "vkvraga2025";
-        displayName = "Phanindra Bharali";
-        role = "developer";
-        assignedClass = null;
-        activeSession = null;
-      });
-    };
+    // Always enforce developer credentials on every login call
+    users.add("developer", {
+      username = "developer";
+      password = "vkvraga2025";
+      displayName = "Phanindra Bharali";
+      role = "developer";
+      assignedClass = null;
+      activeSession = null;
+    });
     switch (users.get(username)) {
       case (null) { null };
       case (?account) {
@@ -1018,16 +1016,15 @@ actor {
     for (account in stableUsers.vals()) {
       users.add(account.username, account);
     };
-    if (not users.containsKey("developer")) {
-      users.add("developer", {
-        username = "developer";
-        password = "vkvraga2025";
-        displayName = "Phanindra Bharali";
-        role = "developer";
-        assignedClass = null;
-        activeSession = null;
-      });
-    };
+    // Always enforce developer credentials after every upgrade
+    users.add("developer", {
+      username = "developer";
+      password = "vkvraga2025";
+      displayName = "Phanindra Bharali";
+      role = "developer";
+      assignedClass = null;
+      activeSession = null;
+    });
   };
 
 };

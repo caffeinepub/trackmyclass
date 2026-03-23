@@ -21,15 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  ArrowLeft,
-  Camera,
-  Loader2,
-  Plus,
-  Printer,
-  Save,
-  Trash2,
-} from "lucide-react";
+import { ArrowLeft, Camera, Loader2, Plus, Printer, Save } from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AppNav } from "../App";
@@ -48,9 +40,6 @@ import { useActor } from "../hooks/useActor";
 import { type AuthSession, canEdit } from "../hooks/useAuth";
 import {
   useActivityRecords,
-  useDeleteActivityRecord,
-  useDeleteAttendance,
-  useDeleteSportsRecord,
   useMonthlyAttendance,
   useReportCards,
   useSaveActivityRecord,
@@ -884,6 +873,29 @@ function MarksTab({
 // ─────────────────────────────────────────
 // ATTENDANCE TAB
 // ─────────────────────────────────────────
+// Fixed 12 months in school-year order
+const SCHOOL_YEAR_MONTHS = [
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+  "January",
+  "February",
+  "March",
+];
+
+type AttendanceRowState = {
+  present: string;
+  totalDays: string;
+  editing: boolean;
+  saving: boolean;
+};
+
 function AttendanceTab({ studentId }: { studentId: string }) {
   const { sessionToken, canEditData } = useStudentPage();
   const { data: attendance, isLoading } = useMonthlyAttendance(
@@ -891,11 +903,65 @@ function AttendanceTab({ studentId }: { studentId: string }) {
     studentId,
   );
   const saveMutation = useSaveAttendance(sessionToken, studentId);
-  const deleteMutation = useDeleteAttendance(sessionToken, studentId);
-  const [month, setMonth] = useState(MONTHS[0]);
-  const [present, setPresent] = useState("");
-  const [totalDays, setTotalDays] = useState("");
-  const [session, setSession] = useState("2025-26");
+  const [sessionYear, setSessionYear] = useState("2025-26");
+  const [rows, setRows] = useState<Record<string, AttendanceRowState>>(() =>
+    Object.fromEntries(
+      SCHOOL_YEAR_MONTHS.map((m) => [
+        m,
+        { present: "", totalDays: "", editing: false, saving: false },
+      ]),
+    ),
+  );
+
+  // Sync rows when attendance data loads
+  useEffect(() => {
+    if (!attendance) return;
+    setRows((prev) => {
+      const next = { ...prev };
+      for (const m of SCHOOL_YEAR_MONTHS) {
+        const rec = attendance.find((a) => a.month === m);
+        if (rec && !next[m].editing) {
+          next[m] = {
+            present: rec.present !== undefined ? String(rec.present) : "",
+            totalDays: rec.totalDays !== undefined ? String(rec.totalDays) : "",
+            editing: false,
+            saving: false,
+          };
+        }
+      }
+      return next;
+    });
+  }, [attendance]);
+
+  const setRow = (month: string, patch: Partial<AttendanceRowState>) =>
+    setRows((prev) => ({ ...prev, [month]: { ...prev[month], ...patch } }));
+
+  const handleSave = async (month: string) => {
+    const row = rows[month];
+    if (!row.present || !row.totalDays) {
+      toast.error("Enter days present and total working days");
+      return;
+    }
+    setRow(month, { saving: true });
+    try {
+      const att: MonthlyAttendance = {
+        studentId,
+        month,
+        present: BigInt(row.present),
+        totalDays: BigInt(row.totalDays),
+        session: sessionYear,
+        percentage:
+          Math.round((Number(row.present) / Number(row.totalDays)) * 100 * 10) /
+          10,
+      };
+      await saveMutation.mutateAsync(att);
+      toast.success(`${month} attendance saved`);
+      setRow(month, { editing: false, saving: false });
+    } catch {
+      toast.error("Failed to save attendance");
+      setRow(month, { saving: false });
+    }
+  };
 
   const totalPresent = (attendance ?? []).reduce(
     (s, a) => s + Number(a.present),
@@ -908,185 +974,158 @@ function AttendanceTab({ studentId }: { studentId: string }) {
   const overallPct =
     totalWorking > 0 ? ((totalPresent / totalWorking) * 100).toFixed(1) : "0.0";
 
-  const handleSave = async () => {
-    if (!present || !totalDays) {
-      toast.error("Fill present days and total working days");
-      return;
-    }
-    try {
-      const att: MonthlyAttendance = {
-        studentId,
-        month,
-        present: BigInt(present),
-        totalDays: BigInt(totalDays),
-        session,
-        percentage:
-          Math.round((Number(present) / Number(totalDays)) * 100 * 10) / 10,
-      };
-      await saveMutation.mutateAsync(att);
-      toast.success("Attendance saved");
-      setPresent("");
-      setTotalDays("");
-    } catch {
-      toast.error("Failed to save attendance");
-    }
-  };
-
   if (isLoading)
     return (
       <Skeleton className="h-40 w-full" data-ocid="attendance.loading_state" />
     );
 
   return (
-    <div className="space-y-6" data-ocid="attendance.section">
+    <div className="space-y-4" data-ocid="attendance.section">
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Add Monthly Attendance</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-            <Field label="Session">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-sm">
+              Monthly Attendance — All 12 Months
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground">Session</Label>
               <Input
                 data-ocid="attendance.session.input"
-                value={session}
-                onChange={(e) => setSession(e.target.value)}
+                value={sessionYear}
+                onChange={(e) => setSessionYear(e.target.value)}
                 placeholder="2025-26"
+                className="w-24 h-7 text-sm"
               />
-            </Field>
-            <Field label="Month">
-              <Select value={month} onValueChange={setMonth}>
-                <SelectTrigger data-ocid="attendance.month.select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTHS.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {m}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Days Present">
-              <Input
-                data-ocid="attendance.present.input"
-                type="number"
-                value={present}
-                onChange={(e) => setPresent(e.target.value)}
-                min={0}
-              />
-            </Field>
-            <Field label="Total Working Days">
-              <Input
-                data-ocid="attendance.total.input"
-                type="number"
-                value={totalDays}
-                onChange={(e) => setTotalDays(e.target.value)}
-                min={0}
-              />
-            </Field>
+            </div>
           </div>
-          <Button
-            onClick={handleSave}
-            disabled={saveMutation.isPending}
-            data-ocid="attendance.save.submit_button"
-          >
-            {saveMutation.isPending && (
-              <Loader2 size={14} className="mr-2 animate-spin" />
-            )}
-            <Save size={14} className="mr-2" /> Save Attendance
-          </Button>
-        </CardContent>
-      </Card>
-
-      {(attendance ?? []).length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Monthly Record</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Month</TableHead>
-                    <TableHead>Session</TableHead>
-                    <TableHead>Present</TableHead>
-                    <TableHead>Total Days</TableHead>
-                    <TableHead>%</TableHead>
-                    {canEditData && <TableHead>Action</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(attendance ?? []).map((a, i) => (
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-32">Month</TableHead>
+                  <TableHead>Present</TableHead>
+                  <TableHead>Total Days</TableHead>
+                  <TableHead>%</TableHead>
+                  {canEditData && <TableHead>Action</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {SCHOOL_YEAR_MONTHS.map((month, i) => {
+                  const row = rows[month];
+                  const rec = (attendance ?? []).find((a) => a.month === month);
+                  const pct = rec
+                    ? rec.percentage
+                    : row.present && row.totalDays
+                      ? Math.round(
+                          (Number(row.present) / Number(row.totalDays)) *
+                            100 *
+                            10,
+                        ) / 10
+                      : null;
+                  const isEditing = row.editing || (!rec && canEditData);
+                  return (
                     <TableRow
-                      key={`${a.month}-${a.session}-${i}`}
+                      key={month}
                       data-ocid={`attendance.item.${i + 1}`}
                     >
-                      <TableCell>{a.month}</TableCell>
-                      <TableCell>{a.session}</TableCell>
-                      <TableCell>{String(a.present)}</TableCell>
-                      <TableCell>{String(a.totalDays)}</TableCell>
+                      <TableCell className="font-medium">{month}</TableCell>
                       <TableCell>
-                        <Badge
-                          variant={
-                            a.percentage >= 75 ? "default" : "destructive"
-                          }
-                        >
-                          {a.percentage.toFixed(1)}%
-                        </Badge>
+                        {isEditing && canEditData ? (
+                          <Input
+                            type="number"
+                            min={0}
+                            value={row.present}
+                            onChange={(e) =>
+                              setRow(month, { present: e.target.value })
+                            }
+                            className="w-20 h-7 text-sm"
+                            data-ocid="attendance.present.input"
+                          />
+                        ) : (
+                          <span>{rec ? String(rec.present) : "—"}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing && canEditData ? (
+                          <Input
+                            type="number"
+                            min={0}
+                            value={row.totalDays}
+                            onChange={(e) =>
+                              setRow(month, { totalDays: e.target.value })
+                            }
+                            className="w-20 h-7 text-sm"
+                            data-ocid="attendance.total.input"
+                          />
+                        ) : (
+                          <span>{rec ? String(rec.totalDays) : "—"}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {pct !== null ? (
+                          <Badge
+                            variant={pct >= 75 ? "default" : "destructive"}
+                          >
+                            {pct.toFixed(1)}%
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">
+                            —
+                          </span>
+                        )}
                       </TableCell>
                       {canEditData && (
                         <TableCell>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive h-7 w-7"
-                            data-ocid={`attendance.delete_button.${i + 1}`}
-                            disabled={deleteMutation.isPending}
-                            onClick={async () => {
-                              if (
-                                !window.confirm(
-                                  "Delete this attendance record?",
-                                )
-                              )
-                                return;
-                              try {
-                                await deleteMutation.mutateAsync({
-                                  month: a.month,
-                                  session: a.session,
-                                });
-                                toast.success("Attendance record deleted");
-                              } catch {
-                                toast.error(
-                                  "Failed to delete attendance record",
-                                );
-                              }
-                            }}
-                          >
-                            <Trash2 size={14} />
-                          </Button>
+                          {isEditing ? (
+                            <Button
+                              size="sm"
+                              disabled={row.saving}
+                              onClick={() => handleSave(month)}
+                              data-ocid="attendance.save.submit_button"
+                            >
+                              {row.saving ? (
+                                <Loader2
+                                  size={12}
+                                  className="animate-spin mr-1"
+                                />
+                              ) : (
+                                <Save size={12} className="mr-1" />
+                              )}
+                              Save
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setRow(month, { editing: true })}
+                              data-ocid={`attendance.edit_button.${i + 1}`}
+                            >
+                              Edit
+                            </Button>
+                          )}
                         </TableCell>
                       )}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="mt-3 p-3 bg-muted rounded-lg flex gap-6 text-sm">
-              <span>
-                Total Present: <strong>{totalPresent}</strong>
-              </span>
-              <span>
-                Working Days: <strong>{totalWorking}</strong>
-              </span>
-              <span>
-                Overall: <strong>{overallPct}%</strong>
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="mt-3 p-3 bg-muted rounded-lg flex gap-6 text-sm flex-wrap">
+            <span>
+              Total Present: <strong>{totalPresent}</strong>
+            </span>
+            <span>
+              Working Days: <strong>{totalWorking}</strong>
+            </span>
+            <span>
+              Overall: <strong>{overallPct}%</strong>
+            </span>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1095,10 +1134,9 @@ function AttendanceTab({ studentId }: { studentId: string }) {
 // SPORTS TAB
 // ─────────────────────────────────────────
 function SportsTab({ studentId }: { studentId: string }) {
-  const { sessionToken, canEditData } = useStudentPage();
+  const { sessionToken } = useStudentPage();
   const { data: sports, isLoading } = useSportsRecords(sessionToken, studentId);
   const saveMutation = useSaveSportsRecord(sessionToken, studentId);
-  const deleteMutation = useDeleteSportsRecord(sessionToken, studentId);
   const [form, setForm] = useState<SportsRecord>({
     studentId,
     game: "",
@@ -1226,7 +1264,6 @@ function SportsTab({ studentId }: { studentId: string }) {
                     <TableHead>Position</TableHead>
                     <TableHead>Session</TableHead>
                     <TableHead>Remarks</TableHead>
-                    {canEditData && <TableHead>Action</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1244,29 +1281,6 @@ function SportsTab({ studentId }: { studentId: string }) {
                       <TableCell className="text-muted-foreground text-sm">
                         {s.remarks}
                       </TableCell>
-                      {canEditData && (
-                        <TableCell>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive h-7 w-7"
-                            data-ocid={`sports.delete_button.${i + 1}`}
-                            disabled={deleteMutation.isPending}
-                            onClick={async () => {
-                              if (!window.confirm("Delete this sports record?"))
-                                return;
-                              try {
-                                await deleteMutation.mutateAsync(s.entryId);
-                                toast.success("Sports record deleted");
-                              } catch {
-                                toast.error("Failed to delete sports record");
-                              }
-                            }}
-                          >
-                            <Trash2 size={14} />
-                          </Button>
-                        </TableCell>
-                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1283,13 +1297,12 @@ function SportsTab({ studentId }: { studentId: string }) {
 // ACTIVITIES TAB
 // ─────────────────────────────────────────
 function ActivitiesTab({ studentId }: { studentId: string }) {
-  const { sessionToken, canEditData } = useStudentPage();
+  const { sessionToken } = useStudentPage();
   const { data: activities, isLoading } = useActivityRecords(
     sessionToken,
     studentId,
   );
   const saveMutation = useSaveActivityRecord(sessionToken, studentId);
-  const deleteMutation = useDeleteActivityRecord(sessionToken, studentId);
   const [form, setForm] = useState<ActivityRecord>({
     studentId,
     activityType: "Cultural",
@@ -1417,20 +1430,10 @@ function ActivitiesTab({ studentId }: { studentId: string }) {
                     <TableHead>Grade</TableHead>
                     <TableHead>Session</TableHead>
                     <TableHead>Remarks</TableHead>
-                    {canEditData && <TableHead>Action</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {coActivities.map((a, i) => {
-                    const allActivities = activities ?? [];
-                    const actualIndex = allActivities.findIndex(
-                      (x) =>
-                        x.activityType === a.activityType &&
-                        x.description === a.description &&
-                        x.grade === a.grade &&
-                        x.remarks === a.remarks &&
-                        x.session === a.session,
-                    );
                     return (
                       <TableRow
                         key={`${a.activityType}-${a.description.slice(0, 20)}-${i}`}
@@ -1446,37 +1449,6 @@ function ActivitiesTab({ studentId }: { studentId: string }) {
                         <TableCell className="text-muted-foreground text-sm">
                           {a.remarks}
                         </TableCell>
-                        {canEditData && (
-                          <TableCell>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive h-7 w-7"
-                              data-ocid={`activities.delete_button.${i + 1}`}
-                              disabled={
-                                deleteMutation.isPending || actualIndex === -1
-                              }
-                              onClick={async () => {
-                                if (
-                                  !window.confirm(
-                                    "Delete this activity record?",
-                                  )
-                                )
-                                  return;
-                                try {
-                                  await deleteMutation.mutateAsync(actualIndex);
-                                  toast.success("Activity record deleted");
-                                } catch {
-                                  toast.error(
-                                    "Failed to delete activity record",
-                                  );
-                                }
-                              }}
-                            >
-                              <Trash2 size={14} />
-                            </Button>
-                          </TableCell>
-                        )}
                       </TableRow>
                     );
                   })}
@@ -1497,13 +1469,12 @@ function DailyRecordsTab({
   studentId,
   classLevel,
 }: { studentId: string; classLevel: number }) {
-  const { sessionToken, canEditData } = useStudentPage();
+  const { sessionToken } = useStudentPage();
   const { data: activities, isLoading } = useActivityRecords(
     sessionToken,
     studentId,
   );
   const saveMutation = useSaveActivityRecord(sessionToken, studentId);
-  const deleteMutation = useDeleteActivityRecord(sessionToken, studentId);
   const subjects = getSubjectsForClass(classLevel);
 
   const [form, setForm] = useState({
@@ -1674,7 +1645,6 @@ function DailyRecordsTab({
                     <TableHead>Marks</TableHead>
                     <TableHead>%</TableHead>
                     <TableHead>Remarks</TableHead>
-                    {canEditData && <TableHead>Action</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1686,15 +1656,6 @@ function DailyRecordsTab({
                     const extraRemarks = a.remarks.includes(" — ")
                       ? a.remarks.split(" — ").slice(1).join(" — ")
                       : "";
-                    const allActivities = activities ?? [];
-                    const actualIndex = allActivities.findIndex(
-                      (x) =>
-                        x.activityType === a.activityType &&
-                        x.description === a.description &&
-                        x.grade === a.grade &&
-                        x.remarks === a.remarks &&
-                        x.session === a.session,
-                    );
                     return (
                       <TableRow
                         key={`${a.description}-${a.activityType}-${a.grade}-${i}`}
@@ -1729,31 +1690,6 @@ function DailyRecordsTab({
                         <TableCell className="text-muted-foreground text-sm">
                           {extraRemarks}
                         </TableCell>
-                        {canEditData && (
-                          <TableCell>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive h-7 w-7"
-                              data-ocid={`daily_records.delete_button.${i + 1}`}
-                              disabled={
-                                deleteMutation.isPending || actualIndex === -1
-                              }
-                              onClick={async () => {
-                                if (!window.confirm("Delete this record?"))
-                                  return;
-                                try {
-                                  await deleteMutation.mutateAsync(actualIndex);
-                                  toast.success("Record deleted");
-                                } catch {
-                                  toast.error("Failed to delete record");
-                                }
-                              }}
-                            >
-                              <Trash2 size={14} />
-                            </Button>
-                          </TableCell>
-                        )}
                       </TableRow>
                     );
                   })}
