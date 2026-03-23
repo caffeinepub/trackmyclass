@@ -177,6 +177,9 @@ export interface backendInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     createUserAccount(sessionToken: string, account: UserAccount): Promise<void>;
     deleteCircular(sessionToken: string, id: string): Promise<void>;
+    deleteActivityRecordWithSession(sessionToken: string, studentId: StudentId, index: bigint): Promise<void>;
+    deleteAttendanceRecordWithSession(sessionToken: string, studentId: StudentId, month: string, session: string): Promise<void>;
+    deleteSportsRecordWithSession(sessionToken: string, studentId: StudentId, entryId: string): Promise<void>;
     deleteClassStudyMaterial(sessionToken: string, id: string): Promise<void>;
     deleteNotice(sessionToken: string, id: string): Promise<void>;
     archiveStudentProfileWithSession(sessionToken: string, studentId: StudentId): Promise<void>;

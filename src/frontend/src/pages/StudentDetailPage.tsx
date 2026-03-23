@@ -48,6 +48,9 @@ import { useActor } from "../hooks/useActor";
 import { type AuthSession, canEdit } from "../hooks/useAuth";
 import {
   useActivityRecords,
+  useDeleteActivityRecord,
+  useDeleteAttendance,
+  useDeleteSportsRecord,
   useMonthlyAttendance,
   useReportCards,
   useSaveActivityRecord,
@@ -623,7 +626,7 @@ function MarksTab({
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">
-              Written Tests &amp; Comprehensive Tests (50 marks each)
+              Written Tests &amp; Comprehensive Assessments (50 marks each)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -636,10 +639,10 @@ function MarksTab({
                     <TableHead>WT2</TableHead>
                     <TableHead>WT3</TableHead>
                     <TableHead>WT4</TableHead>
-                    <TableHead>CT1</TableHead>
-                    <TableHead>CT2</TableHead>
-                    <TableHead>CT3</TableHead>
-                    <TableHead>CT4</TableHead>
+                    <TableHead>CA1</TableHead>
+                    <TableHead>CA2</TableHead>
+                    <TableHead>CA3</TableHead>
+                    <TableHead>CA4</TableHead>
                     <TableHead>Total /400</TableHead>
                     <TableHead>%</TableHead>
                     <TableHead>Grade</TableHead>
@@ -882,12 +885,13 @@ function MarksTab({
 // ATTENDANCE TAB
 // ─────────────────────────────────────────
 function AttendanceTab({ studentId }: { studentId: string }) {
-  const { sessionToken } = useStudentPage();
+  const { sessionToken, canEditData } = useStudentPage();
   const { data: attendance, isLoading } = useMonthlyAttendance(
     sessionToken,
     studentId,
   );
   const saveMutation = useSaveAttendance(sessionToken, studentId);
+  const deleteMutation = useDeleteAttendance(sessionToken, studentId);
   const [month, setMonth] = useState(MONTHS[0]);
   const [present, setPresent] = useState("");
   const [totalDays, setTotalDays] = useState("");
@@ -1010,6 +1014,7 @@ function AttendanceTab({ studentId }: { studentId: string }) {
                     <TableHead>Present</TableHead>
                     <TableHead>Total Days</TableHead>
                     <TableHead>%</TableHead>
+                    {canEditData && <TableHead>Action</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1031,6 +1036,38 @@ function AttendanceTab({ studentId }: { studentId: string }) {
                           {a.percentage.toFixed(1)}%
                         </Badge>
                       </TableCell>
+                      {canEditData && (
+                        <TableCell>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive h-7 w-7"
+                            data-ocid={`attendance.delete_button.${i + 1}`}
+                            disabled={deleteMutation.isPending}
+                            onClick={async () => {
+                              if (
+                                !window.confirm(
+                                  "Delete this attendance record?",
+                                )
+                              )
+                                return;
+                              try {
+                                await deleteMutation.mutateAsync({
+                                  month: a.month,
+                                  session: a.session,
+                                });
+                                toast.success("Attendance record deleted");
+                              } catch {
+                                toast.error(
+                                  "Failed to delete attendance record",
+                                );
+                              }
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1058,9 +1095,10 @@ function AttendanceTab({ studentId }: { studentId: string }) {
 // SPORTS TAB
 // ─────────────────────────────────────────
 function SportsTab({ studentId }: { studentId: string }) {
-  const { sessionToken } = useStudentPage();
+  const { sessionToken, canEditData } = useStudentPage();
   const { data: sports, isLoading } = useSportsRecords(sessionToken, studentId);
   const saveMutation = useSaveSportsRecord(sessionToken, studentId);
+  const deleteMutation = useDeleteSportsRecord(sessionToken, studentId);
   const [form, setForm] = useState<SportsRecord>({
     studentId,
     game: "",
@@ -1188,6 +1226,7 @@ function SportsTab({ studentId }: { studentId: string }) {
                     <TableHead>Position</TableHead>
                     <TableHead>Session</TableHead>
                     <TableHead>Remarks</TableHead>
+                    {canEditData && <TableHead>Action</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1205,6 +1244,29 @@ function SportsTab({ studentId }: { studentId: string }) {
                       <TableCell className="text-muted-foreground text-sm">
                         {s.remarks}
                       </TableCell>
+                      {canEditData && (
+                        <TableCell>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive h-7 w-7"
+                            data-ocid={`sports.delete_button.${i + 1}`}
+                            disabled={deleteMutation.isPending}
+                            onClick={async () => {
+                              if (!window.confirm("Delete this sports record?"))
+                                return;
+                              try {
+                                await deleteMutation.mutateAsync(s.entryId);
+                                toast.success("Sports record deleted");
+                              } catch {
+                                toast.error("Failed to delete sports record");
+                              }
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1221,12 +1283,13 @@ function SportsTab({ studentId }: { studentId: string }) {
 // ACTIVITIES TAB
 // ─────────────────────────────────────────
 function ActivitiesTab({ studentId }: { studentId: string }) {
-  const { sessionToken } = useStudentPage();
+  const { sessionToken, canEditData } = useStudentPage();
   const { data: activities, isLoading } = useActivityRecords(
     sessionToken,
     studentId,
   );
   const saveMutation = useSaveActivityRecord(sessionToken, studentId);
+  const deleteMutation = useDeleteActivityRecord(sessionToken, studentId);
   const [form, setForm] = useState<ActivityRecord>({
     studentId,
     activityType: "Cultural",
@@ -1354,26 +1417,69 @@ function ActivitiesTab({ studentId }: { studentId: string }) {
                     <TableHead>Grade</TableHead>
                     <TableHead>Session</TableHead>
                     <TableHead>Remarks</TableHead>
+                    {canEditData && <TableHead>Action</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {coActivities.map((a, i) => (
-                    <TableRow
-                      key={`${a.activityType}-${a.description.slice(0, 20)}-${i}`}
-                      data-ocid={`activities.item.${i + 1}`}
-                    >
-                      <TableCell>{i + 1}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{a.activityType}</Badge>
-                      </TableCell>
-                      <TableCell>{a.description}</TableCell>
-                      <TableCell>{a.grade}</TableCell>
-                      <TableCell>{a.session}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {a.remarks}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {coActivities.map((a, i) => {
+                    const allActivities = activities ?? [];
+                    const actualIndex = allActivities.findIndex(
+                      (x) =>
+                        x.activityType === a.activityType &&
+                        x.description === a.description &&
+                        x.grade === a.grade &&
+                        x.remarks === a.remarks &&
+                        x.session === a.session,
+                    );
+                    return (
+                      <TableRow
+                        key={`${a.activityType}-${a.description.slice(0, 20)}-${i}`}
+                        data-ocid={`activities.item.${i + 1}`}
+                      >
+                        <TableCell>{i + 1}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{a.activityType}</Badge>
+                        </TableCell>
+                        <TableCell>{a.description}</TableCell>
+                        <TableCell>{a.grade}</TableCell>
+                        <TableCell>{a.session}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {a.remarks}
+                        </TableCell>
+                        {canEditData && (
+                          <TableCell>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive h-7 w-7"
+                              data-ocid={`activities.delete_button.${i + 1}`}
+                              disabled={
+                                deleteMutation.isPending || actualIndex === -1
+                              }
+                              onClick={async () => {
+                                if (
+                                  !window.confirm(
+                                    "Delete this activity record?",
+                                  )
+                                )
+                                  return;
+                                try {
+                                  await deleteMutation.mutateAsync(actualIndex);
+                                  toast.success("Activity record deleted");
+                                } catch {
+                                  toast.error(
+                                    "Failed to delete activity record",
+                                  );
+                                }
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -1391,12 +1497,13 @@ function DailyRecordsTab({
   studentId,
   classLevel,
 }: { studentId: string; classLevel: number }) {
-  const { sessionToken } = useStudentPage();
+  const { sessionToken, canEditData } = useStudentPage();
   const { data: activities, isLoading } = useActivityRecords(
     sessionToken,
     studentId,
   );
   const saveMutation = useSaveActivityRecord(sessionToken, studentId);
+  const deleteMutation = useDeleteActivityRecord(sessionToken, studentId);
   const subjects = getSubjectsForClass(classLevel);
 
   const [form, setForm] = useState({
@@ -1567,6 +1674,7 @@ function DailyRecordsTab({
                     <TableHead>Marks</TableHead>
                     <TableHead>%</TableHead>
                     <TableHead>Remarks</TableHead>
+                    {canEditData && <TableHead>Action</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1578,6 +1686,15 @@ function DailyRecordsTab({
                     const extraRemarks = a.remarks.includes(" — ")
                       ? a.remarks.split(" — ").slice(1).join(" — ")
                       : "";
+                    const allActivities = activities ?? [];
+                    const actualIndex = allActivities.findIndex(
+                      (x) =>
+                        x.activityType === a.activityType &&
+                        x.description === a.description &&
+                        x.grade === a.grade &&
+                        x.remarks === a.remarks &&
+                        x.session === a.session,
+                    );
                     return (
                       <TableRow
                         key={`${a.description}-${a.activityType}-${a.grade}-${i}`}
@@ -1612,6 +1729,31 @@ function DailyRecordsTab({
                         <TableCell className="text-muted-foreground text-sm">
                           {extraRemarks}
                         </TableCell>
+                        {canEditData && (
+                          <TableCell>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive h-7 w-7"
+                              data-ocid={`daily_records.delete_button.${i + 1}`}
+                              disabled={
+                                deleteMutation.isPending || actualIndex === -1
+                              }
+                              onClick={async () => {
+                                if (!window.confirm("Delete this record?"))
+                                  return;
+                                try {
+                                  await deleteMutation.mutateAsync(actualIndex);
+                                  toast.success("Record deleted");
+                                } catch {
+                                  toast.error("Failed to delete record");
+                                }
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
@@ -1804,7 +1946,7 @@ ${
   lower
     ? `
 <table>
-  <tr><th>Subject</th><th>WT1</th><th>WT2</th><th>WT3</th><th>WT4</th><th>CT1</th><th>CT2</th><th>CT3</th><th>CT4</th><th>Total /400</th><th>%</th><th>Grade</th></tr>
+  <tr><th>Subject</th><th>WT1</th><th>WT2</th><th>WT3</th><th>WT4</th><th>CA1</th><th>CA2</th><th>CA3</th><th>CA4</th><th>Total /400</th><th>%</th><th>Grade</th></tr>
   ${(marksData ?? [])
     .filter((m) => m.__kind__ === "lowerClass")
     .map((m) => {

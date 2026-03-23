@@ -264,6 +264,71 @@ export function useSaveActivityRecord(sessionToken: string, studentId: string) {
   });
 }
 
+export function useDeleteAttendance(sessionToken: string, studentId: string) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      month,
+      session,
+    }: { month: string; session: string }) => {
+      if (!actor) throw new Error("Not connected");
+      await actor.deleteAttendanceRecordWithSession(
+        sessionToken,
+        studentId,
+        month,
+        session,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: ["attendance", sessionToken, studentId],
+      });
+    },
+  });
+}
+
+export function useDeleteSportsRecord(sessionToken: string, studentId: string) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (entryId: string) => {
+      if (!actor) throw new Error("Not connected");
+      await actor.deleteSportsRecordWithSession(
+        sessionToken,
+        studentId,
+        entryId,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sports", sessionToken, studentId] });
+    },
+  });
+}
+
+export function useDeleteActivityRecord(
+  sessionToken: string,
+  studentId: string,
+) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (index: number) => {
+      if (!actor) throw new Error("Not connected");
+      await actor.deleteActivityRecordWithSession(
+        sessionToken,
+        studentId,
+        BigInt(index),
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: ["activities", sessionToken, studentId],
+      });
+    },
+  });
+}
+
 export function useSaveReportCard(sessionToken: string, studentId: string) {
   const { actor } = useActor();
   const qc = useQueryClient();

@@ -277,6 +277,9 @@ export interface backendInterface {
     restoreStudentProfileWithSession(sessionToken: string, studentId: StudentId): Promise<void>;
     listArchivedStudentProfilesWithSession(sessionToken: string): Promise<Array<StudentProfile>>;
     deleteUserAccount(sessionToken: string, username: string): Promise<void>;
+    deleteAttendanceRecordWithSession(sessionToken: string, studentId: StudentId, month: string, session: string): Promise<void>;
+    deleteSportsRecordWithSession(sessionToken: string, studentId: StudentId, entryId: string): Promise<void>;
+    deleteActivityRecordWithSession(sessionToken: string, studentId: StudentId, index: bigint): Promise<void>;
     getActivityRecords(studentId: StudentId): Promise<Array<ActivityRecord>>;
     getActivityRecordsWithSession(sessionToken: string, studentId: StudentId): Promise<Array<ActivityRecord>>;
     getAllRecordsForStudent(studentId: StudentId): Promise<{
@@ -590,6 +593,48 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteUserAccount(arg0, arg1);
+            return result;
+        }
+    }
+    async deleteAttendanceRecordWithSession(arg0: string, arg1: StudentId, arg2: string, arg3: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteAttendanceRecordWithSession(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteAttendanceRecordWithSession(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async deleteSportsRecordWithSession(arg0: string, arg1: StudentId, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteSportsRecordWithSession(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteSportsRecordWithSession(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async deleteActivityRecordWithSession(arg0: string, arg1: StudentId, arg2: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteActivityRecordWithSession(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteActivityRecordWithSession(arg0, arg1, arg2);
             return result;
         }
     }

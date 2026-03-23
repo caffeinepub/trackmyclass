@@ -621,6 +621,49 @@ actor {
     };
   };
 
+  // Delete attendance record by month+session
+  public func deleteAttendanceRecordWithSession(sessionToken : Text, studentId : StudentId, month : Text, session : Text) : async () {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        let profile = studentProfiles.get(studentId);
+        if (not canModifyData(sessionInfo, profile)) { Runtime.trap("Unauthorized: You don't have permission to modify attendance for this student") };
+        let existing = switch (monthlyAttendance.get(studentId)) { case (null) { [] }; case (?r) { r } };
+        let filtered = existing.filter(func(a) { not (a.month == month and a.session == session) });
+        monthlyAttendance.add(studentId, filtered);
+      };
+    };
+  };
+
+  // Delete sports record by entryId
+  public func deleteSportsRecordWithSession(sessionToken : Text, studentId : StudentId, entryId : Text) : async () {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        let profile = studentProfiles.get(studentId);
+        if (not canModifyData(sessionInfo, profile)) { Runtime.trap("Unauthorized: You don't have permission to modify sports records for this student") };
+        let existing = switch (sportsRecords.get(studentId)) { case (null) { [] }; case (?r) { r } };
+        let filtered = existing.filter(func(s) { s.entryId != entryId });
+        sportsRecords.add(studentId, filtered);
+      };
+    };
+  };
+
+  // Delete activity record by index
+  public func deleteActivityRecordWithSession(sessionToken : Text, studentId : StudentId, index : Nat) : async () {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        let profile = studentProfiles.get(studentId);
+        if (not canModifyData(sessionInfo, profile)) { Runtime.trap("Unauthorized: You don't have permission to modify activity records for this student") };
+        let existing = switch (activityRecords.get(studentId)) { case (null) { [] }; case (?r) { r } };
+        var idx = 0;
+        let filtered = existing.filter(func(_) { let keep = idx != index; idx += 1; keep });
+        activityRecords.add(studentId, filtered);
+      };
+    };
+  };
+
   public func saveReportCardWithSession(sessionToken : Text, studentId : StudentId, report : ReportCard) : async () {
     switch (getSessionInfo(sessionToken)) {
       case (null) { Runtime.trap("Unauthorized: Invalid session token") };
