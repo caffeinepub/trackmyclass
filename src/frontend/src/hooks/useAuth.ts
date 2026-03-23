@@ -24,9 +24,17 @@ export function canEditClass(
   return false;
 }
 
+function isCanisterStoppedError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return (
+    msg.includes("IC0508") ||
+    msg.includes("is stopped") ||
+    msg.includes("canister stopped")
+  );
+}
+
 export function useAuth() {
-  const { actor, isFetching } = useActor();
-  const actorError: boolean | undefined = undefined;
+  const { actor, isFetching, actorError } = useActor();
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -36,7 +44,7 @@ export function useAuth() {
     // If still fetching, wait
     if (isFetching) return;
 
-    // If actor failed to load, unblock the app and show login page
+    // If actor failed to load or is not available, unblock the app and show login page
     if (!actor) {
       localStorage.removeItem(SESSION_KEY);
       setIsInitializing(false);
@@ -97,7 +105,7 @@ export function useAuth() {
         return {
           ok: false,
           error:
-            "System is still initializing. Please wait a moment and try again, or refresh the page.",
+            "System is still initializing. Please refresh the page and try again.",
         };
       }
       setIsLoggingIn(true);
@@ -123,6 +131,13 @@ export function useAuth() {
         setSession(newSession);
         return { ok: true };
       } catch (e) {
+        if (isCanisterStoppedError(e)) {
+          return {
+            ok: false,
+            error:
+              "The server is temporarily unavailable (restarting after an update). Please wait 30 seconds and try again.",
+          };
+        }
         const msg = e instanceof Error ? e.message : String(e);
         return { ok: false, error: `Login failed: ${msg}` };
       } finally {
