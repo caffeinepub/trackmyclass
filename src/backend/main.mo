@@ -580,7 +580,9 @@ actor {
         let profile = studentProfiles.get(studentId);
         if (not canModifyData(sessionInfo, profile)) { Runtime.trap("Unauthorized: You don't have permission to save attendance for this student") };
         let existing = switch (monthlyAttendance.get(studentId)) { case (null) { [] }; case (?r) { r } };
-        monthlyAttendance.add(studentId, existing.concat([attendance]));
+        // Upsert: remove any existing record for same month+session, then append the new one
+        let filtered = existing.filter(func(a : MonthlyAttendance) : Bool { not (a.month == attendance.month and a.session == attendance.session) });
+        monthlyAttendance.add(studentId, filtered.concat([attendance]));
       };
     };
   };
@@ -591,7 +593,14 @@ actor {
       case (?sessionInfo) {
         let profile = studentProfiles.get(studentId);
         if (not hasStudentPermission(sessionInfo, profile)) { Runtime.trap("Unauthorized: You don't have permission to view attendance for this student") };
-        switch (monthlyAttendance.get(studentId)) { case (null) { [] }; case (?r) { r } };
+        let all = switch (monthlyAttendance.get(studentId)) { case (null) { [] }; case (?r) { r } };
+        // Deduplicate: keep only the last record per month+session (handles legacy duplicates)
+        let seen = Map.empty<Text, MonthlyAttendance>();
+        for (a in all.vals()) {
+          let key = a.month # "|" # a.session;
+          seen.add(key, a);
+        };
+        seen.values().toArray();
       };
     };
   };
