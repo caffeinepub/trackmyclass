@@ -31,7 +31,8 @@ export interface AppNav {
 }
 
 export default function App() {
-  const { session, login, logout, isInitializing, isLoggingIn } = useAuth();
+  const { session, login, logout, isInitializing, isLoggingIn, actorError } =
+    useAuth();
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
   const [params, setParams] = useState<Record<string, string>>({});
 
@@ -58,7 +59,11 @@ export default function App() {
   if (!session) {
     return (
       <>
-        <LoginPage login={login} isLoggingIn={isLoggingIn} />
+        <LoginPage
+          login={login}
+          isLoggingIn={isLoggingIn}
+          actorError={actorError}
+        />
         <Toaster />
       </>
     );

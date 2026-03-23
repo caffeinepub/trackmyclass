@@ -22,6 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Archive,
   ArrowLeft,
   Camera,
   Loader2,
@@ -49,6 +50,8 @@ import { useActor } from "../hooks/useActor";
 import { type AuthSession, canEdit } from "../hooks/useAuth";
 import {
   useActivityRecords,
+  useDeleteActivityRecord,
+  useDeleteSportsRecord,
   useMonthlyAttendance,
   useReportCards,
   useSaveActivityRecord,
@@ -1149,6 +1152,7 @@ function SportsTab({ studentId }: { studentId: string }) {
   const { data: sports, isLoading } = useSportsRecords(sessionToken, studentId);
   const saveMutation = useSaveSportsRecord(sessionToken, studentId);
   const updateMutation = useUpdateSportsRecord(sessionToken, studentId);
+  const deleteMutation = useDeleteSportsRecord(sessionToken, studentId);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const emptyForm: SportsRecord = {
     studentId,
@@ -1337,14 +1341,38 @@ function SportsTab({ studentId }: { studentId: string }) {
                       </TableCell>
                       {canEditData && (
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEdit(s)}
-                            data-ocid={`sports.edit_button.${i + 1}`}
-                          >
-                            <Pencil size={14} />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleEdit(s)}
+                              data-ocid={`sports.edit_button.${i + 1}`}
+                            >
+                              <Pencil size={14} />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-amber-600 hover:text-amber-700"
+                              onClick={async () => {
+                                if (
+                                  window.confirm("Archive this sports record?")
+                                ) {
+                                  try {
+                                    await deleteMutation.mutateAsync(s.entryId);
+                                    toast.success("Sports record archived");
+                                  } catch (err) {
+                                    toast.error(
+                                      `Failed to archive: ${err instanceof Error ? err.message : String(err)}`,
+                                    );
+                                  }
+                                }
+                              }}
+                              data-ocid={`sports.archive_button.${i + 1}`}
+                            >
+                              <Archive size={14} />
+                            </Button>
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
@@ -1370,6 +1398,7 @@ function ActivitiesTab({ studentId }: { studentId: string }) {
   );
   const saveMutation = useSaveActivityRecord(sessionToken, studentId);
   const updateMutation = useUpdateActivityRecord(sessionToken, studentId);
+  const deleteMutation = useDeleteActivityRecord(sessionToken, studentId);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const emptyForm: ActivityRecord = {
     studentId,
@@ -1565,14 +1594,42 @@ function ActivitiesTab({ studentId }: { studentId: string }) {
                         </TableCell>
                         {canEditData && (
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleEdit(a, globalIndex)}
-                              data-ocid={`activities.edit_button.${i + 1}`}
-                            >
-                              <Pencil size={14} />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleEdit(a, globalIndex)}
+                                data-ocid={`activities.edit_button.${i + 1}`}
+                              >
+                                <Pencil size={14} />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-amber-600 hover:text-amber-700"
+                                onClick={async () => {
+                                  if (
+                                    window.confirm(
+                                      "Archive this activity record?",
+                                    )
+                                  ) {
+                                    try {
+                                      await deleteMutation.mutateAsync(
+                                        globalIndex,
+                                      );
+                                      toast.success("Activity archived");
+                                    } catch (err) {
+                                      toast.error(
+                                        `Failed to archive: ${err instanceof Error ? err.message : String(err)}`,
+                                      );
+                                    }
+                                  }
+                                }}
+                                data-ocid={`activities.archive_button.${i + 1}`}
+                              >
+                                <Archive size={14} />
+                              </Button>
+                            </div>
                           </TableCell>
                         )}
                       </TableRow>
@@ -1602,6 +1659,7 @@ function DailyRecordsTab({
   );
   const saveMutation = useSaveActivityRecord(sessionToken, studentId);
   const updateMutation = useUpdateActivityRecord(sessionToken, studentId);
+  const deleteMutation = useDeleteActivityRecord(sessionToken, studentId);
   const subjects = getSubjectsForClass(classLevel);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
@@ -1885,14 +1943,40 @@ function DailyRecordsTab({
                         </TableCell>
                         {canEditData && (
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleEdit(a, globalIndex)}
-                              data-ocid={`daily_records.edit_button.${i + 1}`}
-                            >
-                              <Pencil size={14} />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleEdit(a, globalIndex)}
+                                data-ocid={`daily_records.edit_button.${i + 1}`}
+                              >
+                                <Pencil size={14} />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-amber-600 hover:text-amber-700"
+                                onClick={async () => {
+                                  if (
+                                    window.confirm("Archive this daily record?")
+                                  ) {
+                                    try {
+                                      await deleteMutation.mutateAsync(
+                                        globalIndex,
+                                      );
+                                      toast.success("Daily record archived");
+                                    } catch (err) {
+                                      toast.error(
+                                        `Failed to archive: ${err instanceof Error ? err.message : String(err)}`,
+                                      );
+                                    }
+                                  }
+                                }}
+                                data-ocid={`daily_records.archive_button.${i + 1}`}
+                              >
+                                <Archive size={14} />
+                              </Button>
+                            </div>
                           </TableCell>
                         )}
                       </TableRow>
@@ -2370,31 +2454,53 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
 
         <Tabs defaultValue="profile">
           <TabsList className="flex flex-wrap h-auto gap-1 mb-4 overflow-x-auto">
-            <TabsTrigger value="profile" data-ocid="student_detail.profile.tab">
+            <TabsTrigger
+              value="profile"
+              data-ocid="student_detail.profile.tab"
+              className="data-[state=active]:bg-blue-500 data-[state=active]:text-white"
+            >
               Profile
             </TabsTrigger>
-            <TabsTrigger value="marks" data-ocid="student_detail.marks.tab">
+            <TabsTrigger
+              value="marks"
+              data-ocid="student_detail.marks.tab"
+              className="data-[state=active]:bg-purple-500 data-[state=active]:text-white"
+            >
               Marks
             </TabsTrigger>
             <TabsTrigger
               value="attendance"
               data-ocid="student_detail.attendance.tab"
+              className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
             >
               Attendance
             </TabsTrigger>
-            <TabsTrigger value="sports" data-ocid="student_detail.sports.tab">
+            <TabsTrigger
+              value="sports"
+              data-ocid="student_detail.sports.tab"
+              className="data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+            >
               Sports
             </TabsTrigger>
             <TabsTrigger
               value="activities"
               data-ocid="student_detail.activities.tab"
+              className="data-[state=active]:bg-pink-500 data-[state=active]:text-white"
             >
               Activities
             </TabsTrigger>
-            <TabsTrigger value="daily" data-ocid="student_detail.daily.tab">
+            <TabsTrigger
+              value="daily"
+              data-ocid="student_detail.daily.tab"
+              className="data-[state=active]:bg-teal-500 data-[state=active]:text-white"
+            >
               Daily Records
             </TabsTrigger>
-            <TabsTrigger value="report" data-ocid="student_detail.report.tab">
+            <TabsTrigger
+              value="report"
+              data-ocid="student_detail.report.tab"
+              className="data-[state=active]:bg-red-500 data-[state=active]:text-white"
+            >
               Report Card
             </TabsTrigger>
           </TabsList>

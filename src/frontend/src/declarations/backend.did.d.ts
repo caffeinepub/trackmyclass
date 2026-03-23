@@ -200,6 +200,10 @@ export interface _SERVICE {
   'archiveStudentProfileWithSession' : ActorMethod<[string, StudentId], undefined>,
   'restoreStudentProfileWithSession' : ActorMethod<[string, StudentId], undefined>,
   'listArchivedStudentProfilesWithSession' : ActorMethod<[string], Array<StudentProfile>>,
+  'deleteSportsRecordWithSession' : ActorMethod<[string, StudentId, string], undefined>,
+  'deleteActivityRecordWithSession' : ActorMethod<[string, StudentId, bigint], undefined>,
+  'updateSportsRecordWithSession' : ActorMethod<[string, StudentId, string, SportsRecord], undefined>,
+  'updateActivityRecordWithSession' : ActorMethod<[string, StudentId, bigint, ActivityRecord], undefined>,
   'deleteUserAccount' : ActorMethod<[string, string], undefined>,
   'getActivityRecords' : ActorMethod<[StudentId], Array<ActivityRecord>>,
   'getActivityRecordsWithSession' : ActorMethod<

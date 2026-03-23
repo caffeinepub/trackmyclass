@@ -1,15 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { GraduationCap, Loader2, Lock, User } from "lucide-react";
+import { GraduationCap, Loader2, Lock, RefreshCw, User } from "lucide-react";
 import { useState } from "react";
 
 interface Props {
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (
+    username: string,
+    password: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
   isLoggingIn: boolean;
+  actorError?: boolean;
 }
 
-export default function LoginPage({ login, isLoggingIn }: Props) {
+export default function LoginPage({ login, isLoggingIn, actorError }: Props) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -21,9 +25,9 @@ export default function LoginPage({ login, isLoggingIn }: Props) {
       setError("Please enter username and password");
       return;
     }
-    const ok = await login(username.trim(), password);
-    if (!ok) {
-      setError("Invalid username or password");
+    const result = await login(username.trim(), password);
+    if (!result.ok) {
+      setError(result.error ?? "Login failed. Please try again.");
     }
   };
 
@@ -48,6 +52,24 @@ export default function LoginPage({ login, isLoggingIn }: Props) {
           </div>
         </div>
 
+        {/* Actor error banner */}
+        {actorError && (
+          <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
+            <RefreshCw size={14} className="shrink-0" />
+            <span>
+              Connection issue detected. Please{" "}
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="underline font-medium"
+              >
+                refresh the page
+              </button>{" "}
+              and try again.
+            </span>
+          </div>
+        )}
+
         {/* Login Card */}
         <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
           <h2 className="font-display font-semibold text-lg mb-1">Sign In</h2>
@@ -66,13 +88,11 @@ export default function LoginPage({ login, isLoggingIn }: Props) {
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Enter username"
+                  autoComplete="username"
+                  placeholder="Enter your username"
+                  className="pl-9"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="pl-9"
-                  autoComplete="username"
-                  data-ocid="login.input"
-                  disabled={isLoggingIn}
                 />
               </div>
             </div>
@@ -87,36 +107,26 @@ export default function LoginPage({ login, isLoggingIn }: Props) {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Enter password"
+                  autoComplete="current-password"
+                  placeholder="Enter your password"
+                  className="pl-9"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-9"
-                  autoComplete="current-password"
-                  data-ocid="login.input"
-                  disabled={isLoggingIn}
                 />
               </div>
             </div>
 
             {error && (
-              <p
-                className="text-sm text-destructive"
-                data-ocid="login.error_state"
-              >
+              <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
                 {error}
               </p>
             )}
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoggingIn}
-              data-ocid="login.submit_button"
-            >
+            <Button type="submit" className="w-full" disabled={isLoggingIn}>
               {isLoggingIn ? (
                 <>
-                  <Loader2 size={15} className="mr-2 animate-spin" />
-                  Signing in…
+                  <Loader2 size={16} className="mr-2 animate-spin" />
+                  Signing in...
                 </>
               ) : (
                 "Sign In"
@@ -125,8 +135,8 @@ export default function LoginPage({ login, isLoggingIn }: Props) {
           </form>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-5">
-          Contact your administrator if you don&apos;t have login credentials.
+        <p className="text-center text-xs text-muted-foreground mt-6">
+          Developed by Phanindra Bharali
         </p>
       </div>
     </div>
