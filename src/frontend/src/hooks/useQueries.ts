@@ -329,6 +329,54 @@ export function useDeleteActivityRecord(
   });
 }
 
+export function useUpdateSportsRecord(sessionToken: string, studentId: string) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      entryId,
+      updated,
+    }: { entryId: string; updated: SportsRecord }) => {
+      if (!actor) throw new Error("Not connected");
+      await actor.updateSportsRecordWithSession(
+        sessionToken,
+        studentId,
+        entryId,
+        updated,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sports", sessionToken, studentId] });
+    },
+  });
+}
+
+export function useUpdateActivityRecord(
+  sessionToken: string,
+  studentId: string,
+) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      index,
+      updated,
+    }: { index: number; updated: ActivityRecord }) => {
+      if (!actor) throw new Error("Not connected");
+      await actor.updateActivityRecordWithSession(
+        sessionToken,
+        studentId,
+        BigInt(index),
+        updated,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: ["activities", sessionToken, studentId],
+      });
+    },
+  });
+}
 export function useSaveReportCard(sessionToken: string, studentId: string) {
   const { actor } = useActor();
   const qc = useQueryClient();

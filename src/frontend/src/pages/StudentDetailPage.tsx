@@ -21,7 +21,16 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Camera, Loader2, Plus, Printer, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  Loader2,
+  Pencil,
+  Plus,
+  Printer,
+  Save,
+  X,
+} from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AppNav } from "../App";
@@ -51,6 +60,8 @@ import {
   useSportsRecords,
   useStudentProfile,
   useSubjectMarks,
+  useUpdateActivityRecord,
+  useUpdateSportsRecord,
 } from "../hooks/useQueries";
 import {
   ACTIVITY_TYPES,
@@ -1134,10 +1145,12 @@ function AttendanceTab({ studentId }: { studentId: string }) {
 // SPORTS TAB
 // ─────────────────────────────────────────
 function SportsTab({ studentId }: { studentId: string }) {
-  const { sessionToken } = useStudentPage();
+  const { sessionToken, canEditData } = useStudentPage();
   const { data: sports, isLoading } = useSportsRecords(sessionToken, studentId);
   const saveMutation = useSaveSportsRecord(sessionToken, studentId);
-  const [form, setForm] = useState<SportsRecord>({
+  const updateMutation = useUpdateSportsRecord(sessionToken, studentId);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const emptyForm: SportsRecord = {
     studentId,
     game: "",
     event: "",
@@ -1146,10 +1159,21 @@ function SportsTab({ studentId }: { studentId: string }) {
     remarks: "",
     session: "2025-26",
     entryId: "",
-  });
+  };
+  const [form, setForm] = useState<SportsRecord>(emptyForm);
 
   const set = (f: keyof SportsRecord, v: string) =>
     setForm((prev) => ({ ...prev, [f]: v }));
+
+  const handleEdit = (s: SportsRecord) => {
+    setForm({ ...s });
+    setEditingEntryId(s.entryId);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingEntryId(null);
+    setForm(emptyForm);
+  };
 
   const handleSave = async () => {
     if (!form.game.trim()) {
@@ -1157,20 +1181,24 @@ function SportsTab({ studentId }: { studentId: string }) {
       return;
     }
     try {
-      await saveMutation.mutateAsync({ ...form, entryId: `${Date.now()}` });
-      toast.success("Sports record saved");
-      setForm({
-        studentId,
-        game: "",
-        event: "",
-        level: "School",
-        position: "",
-        remarks: "",
-        session: "2025-26",
-        entryId: "",
-      });
-    } catch {
-      toast.error("Failed to save");
+      if (editingEntryId) {
+        await updateMutation.mutateAsync({
+          entryId: editingEntryId,
+          updated: { ...form, entryId: editingEntryId },
+        });
+        toast.success("Sports record updated");
+        setEditingEntryId(null);
+      } else {
+        await saveMutation.mutateAsync({ ...form, entryId: `${Date.now()}` });
+        toast.success("Sports record saved");
+      }
+      setForm(emptyForm);
+    } catch (err) {
+      toast.error(
+        editingEntryId
+          ? `Failed to update: ${err instanceof Error ? err.message : String(err)}`
+          : "Failed to save",
+      );
     }
   };
 
@@ -1183,7 +1211,9 @@ function SportsTab({ studentId }: { studentId: string }) {
     <div className="space-y-6" data-ocid="sports.section">
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Add Sports Record</CardTitle>
+          <CardTitle className="text-sm">
+            {editingEntryId ? "Edit Sports Record" : "Add Sports Record"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
@@ -1237,16 +1267,39 @@ function SportsTab({ studentId }: { studentId: string }) {
               />
             </Field>
           </div>
-          <Button
-            onClick={handleSave}
-            disabled={saveMutation.isPending}
-            data-ocid="sports.add.submit_button"
-          >
-            {saveMutation.isPending && (
-              <Loader2 size={14} className="mr-2 animate-spin" />
+          <div className="flex gap-2">
+            <Button
+              onClick={handleSave}
+              disabled={saveMutation.isPending || updateMutation.isPending}
+              data-ocid={
+                editingEntryId
+                  ? "sports.update.submit_button"
+                  : "sports.add.submit_button"
+              }
+            >
+              {(saveMutation.isPending || updateMutation.isPending) && (
+                <Loader2 size={14} className="mr-2 animate-spin" />
+              )}
+              {editingEntryId ? (
+                <>
+                  <Save size={14} className="mr-2" /> Update Record
+                </>
+              ) : (
+                <>
+                  <Plus size={14} className="mr-2" /> Add Record
+                </>
+              )}
+            </Button>
+            {editingEntryId && (
+              <Button
+                variant="outline"
+                onClick={handleCancelEdit}
+                data-ocid="sports.cancel.button"
+              >
+                <X size={14} className="mr-2" /> Cancel
+              </Button>
             )}
-            <Plus size={14} className="mr-2" /> Add Record
-          </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -1264,6 +1317,7 @@ function SportsTab({ studentId }: { studentId: string }) {
                     <TableHead>Position</TableHead>
                     <TableHead>Session</TableHead>
                     <TableHead>Remarks</TableHead>
+                    {canEditData && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1281,6 +1335,18 @@ function SportsTab({ studentId }: { studentId: string }) {
                       <TableCell className="text-muted-foreground text-sm">
                         {s.remarks}
                       </TableCell>
+                      {canEditData && (
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEdit(s)}
+                            data-ocid={`sports.edit_button.${i + 1}`}
+                          >
+                            <Pencil size={14} />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1297,20 +1363,23 @@ function SportsTab({ studentId }: { studentId: string }) {
 // ACTIVITIES TAB
 // ─────────────────────────────────────────
 function ActivitiesTab({ studentId }: { studentId: string }) {
-  const { sessionToken } = useStudentPage();
+  const { sessionToken, canEditData } = useStudentPage();
   const { data: activities, isLoading } = useActivityRecords(
     sessionToken,
     studentId,
   );
   const saveMutation = useSaveActivityRecord(sessionToken, studentId);
-  const [form, setForm] = useState<ActivityRecord>({
+  const updateMutation = useUpdateActivityRecord(sessionToken, studentId);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const emptyForm: ActivityRecord = {
     studentId,
     activityType: "Cultural",
     description: "",
     grade: "",
     remarks: "",
     session: "2025-26",
-  });
+  };
+  const [form, setForm] = useState<ActivityRecord>(emptyForm);
 
   // Only show co-curricular (not classTest/assignment)
   const coActivities = (activities ?? []).filter(
@@ -1323,24 +1392,40 @@ function ActivitiesTab({ studentId }: { studentId: string }) {
   const set = (f: keyof ActivityRecord, v: string) =>
     setForm((prev) => ({ ...prev, [f]: v }));
 
+  const handleEdit = (a: ActivityRecord, globalIndex: number) => {
+    setForm({ ...a });
+    setEditingIndex(globalIndex);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingIndex(null);
+    setForm(emptyForm);
+  };
+
   const handleSave = async () => {
     if (!form.description.trim()) {
       toast.error("Description required");
       return;
     }
     try {
-      await saveMutation.mutateAsync(form);
-      toast.success("Activity saved");
-      setForm({
-        studentId,
-        activityType: "Cultural",
-        description: "",
-        grade: "",
-        remarks: "",
-        session: "2025-26",
-      });
-    } catch {
-      toast.error("Failed to save");
+      if (editingIndex !== null) {
+        await updateMutation.mutateAsync({
+          index: editingIndex,
+          updated: { ...form, studentId, session: form.session },
+        });
+        toast.success("Activity updated");
+        setEditingIndex(null);
+      } else {
+        await saveMutation.mutateAsync(form);
+        toast.success("Activity saved");
+      }
+      setForm(emptyForm);
+    } catch (err) {
+      toast.error(
+        editingIndex !== null
+          ? `Failed to update: ${err instanceof Error ? err.message : String(err)}`
+          : "Failed to save",
+      );
     }
   };
 
@@ -1353,7 +1438,11 @@ function ActivitiesTab({ studentId }: { studentId: string }) {
     <div className="space-y-6" data-ocid="activities.section">
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Add Co-curricular Activity</CardTitle>
+          <CardTitle className="text-sm">
+            {editingIndex !== null
+              ? "Edit Co-curricular Activity"
+              : "Add Co-curricular Activity"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
@@ -1404,16 +1493,39 @@ function ActivitiesTab({ studentId }: { studentId: string }) {
               />
             </Field>
           </div>
-          <Button
-            onClick={handleSave}
-            disabled={saveMutation.isPending}
-            data-ocid="activities.add.submit_button"
-          >
-            {saveMutation.isPending && (
-              <Loader2 size={14} className="mr-2 animate-spin" />
+          <div className="flex gap-2">
+            <Button
+              onClick={handleSave}
+              disabled={saveMutation.isPending || updateMutation.isPending}
+              data-ocid={
+                editingIndex !== null
+                  ? "activities.update.submit_button"
+                  : "activities.add.submit_button"
+              }
+            >
+              {(saveMutation.isPending || updateMutation.isPending) && (
+                <Loader2 size={14} className="mr-2 animate-spin" />
+              )}
+              {editingIndex !== null ? (
+                <>
+                  <Save size={14} className="mr-2" /> Update Activity
+                </>
+              ) : (
+                <>
+                  <Plus size={14} className="mr-2" /> Add Activity
+                </>
+              )}
+            </Button>
+            {editingIndex !== null && (
+              <Button
+                variant="outline"
+                onClick={handleCancelEdit}
+                data-ocid="activities.cancel.button"
+              >
+                <X size={14} className="mr-2" /> Cancel
+              </Button>
             )}
-            <Plus size={14} className="mr-2" /> Add Activity
-          </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -1430,10 +1542,12 @@ function ActivitiesTab({ studentId }: { studentId: string }) {
                     <TableHead>Grade</TableHead>
                     <TableHead>Session</TableHead>
                     <TableHead>Remarks</TableHead>
+                    {canEditData && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {coActivities.map((a, i) => {
+                    const globalIndex = (activities ?? []).indexOf(a);
                     return (
                       <TableRow
                         key={`${a.activityType}-${a.description.slice(0, 20)}-${i}`}
@@ -1449,6 +1563,18 @@ function ActivitiesTab({ studentId }: { studentId: string }) {
                         <TableCell className="text-muted-foreground text-sm">
                           {a.remarks}
                         </TableCell>
+                        {canEditData && (
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleEdit(a, globalIndex)}
+                              data-ocid={`activities.edit_button.${i + 1}`}
+                            >
+                              <Pencil size={14} />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
@@ -1469,15 +1595,17 @@ function DailyRecordsTab({
   studentId,
   classLevel,
 }: { studentId: string; classLevel: number }) {
-  const { sessionToken } = useStudentPage();
+  const { sessionToken, canEditData } = useStudentPage();
   const { data: activities, isLoading } = useActivityRecords(
     sessionToken,
     studentId,
   );
   const saveMutation = useSaveActivityRecord(sessionToken, studentId);
+  const updateMutation = useUpdateActivityRecord(sessionToken, studentId);
   const subjects = getSubjectsForClass(classLevel);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  const [form, setForm] = useState({
+  const emptyForm = {
     type: "classTest",
     subject: subjects[0] || "English",
     date: new Date().toISOString().split("T")[0],
@@ -1485,7 +1613,8 @@ function DailyRecordsTab({
     totalMarks: "",
     remarks: "",
     session: "2025-26",
-  });
+  };
+  const [form, setForm] = useState(emptyForm);
 
   const dailyRecords = (activities ?? []).filter(
     (a) =>
@@ -1496,6 +1625,30 @@ function DailyRecordsTab({
 
   const setF = (f: string, v: string) =>
     setForm((prev) => ({ ...prev, [f]: v }));
+
+  const handleEdit = (a: ActivityRecord, globalIndex: number) => {
+    // Decode: description=date, grade=subject, remarks=obtained/total — extraRemarks
+    const marksStr = a.remarks.split(" — ")[0];
+    const [obtained, total] = marksStr.split("/");
+    const extraRemarks = a.remarks.includes(" — ")
+      ? a.remarks.split(" — ").slice(1).join(" — ")
+      : "";
+    setForm({
+      type: a.activityType,
+      subject: a.grade,
+      date: a.description,
+      marksObtained: obtained || "",
+      totalMarks: total || "",
+      remarks: extraRemarks,
+      session: a.session,
+    });
+    setEditingIndex(globalIndex);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingIndex(null);
+    setForm(emptyForm);
+  };
 
   const handleSave = async () => {
     if (!form.marksObtained || !form.totalMarks) {
@@ -1512,16 +1665,29 @@ function DailyRecordsTab({
         remarks: `${form.marksObtained}/${form.totalMarks}${form.remarks ? ` — ${form.remarks}` : ""}`,
         session: form.session,
       };
-      await saveMutation.mutateAsync(activity);
-      toast.success("Record saved");
+      if (editingIndex !== null) {
+        await updateMutation.mutateAsync({
+          index: editingIndex,
+          updated: activity,
+        });
+        toast.success("Record updated");
+        setEditingIndex(null);
+      } else {
+        await saveMutation.mutateAsync(activity);
+        toast.success("Record saved");
+      }
       setForm((prev) => ({
         ...prev,
         marksObtained: "",
         totalMarks: "",
         remarks: "",
       }));
-    } catch {
-      toast.error("Failed to save");
+    } catch (err) {
+      toast.error(
+        editingIndex !== null
+          ? `Failed to update: ${err instanceof Error ? err.message : String(err)}`
+          : "Failed to save",
+      );
     }
   };
 
@@ -1538,7 +1704,9 @@ function DailyRecordsTab({
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
-            Add Daily Record (Class Test / Assignment)
+            {editingIndex !== null
+              ? "Edit Daily Record"
+              : "Add Daily Record (Class Test / Assignment)"}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -1618,16 +1786,39 @@ function DailyRecordsTab({
               />
             </Field>
           </div>
-          <Button
-            onClick={handleSave}
-            disabled={saveMutation.isPending}
-            data-ocid="daily_records.add.submit_button"
-          >
-            {saveMutation.isPending && (
-              <Loader2 size={14} className="mr-2 animate-spin" />
+          <div className="flex gap-2">
+            <Button
+              onClick={handleSave}
+              disabled={saveMutation.isPending || updateMutation.isPending}
+              data-ocid={
+                editingIndex !== null
+                  ? "daily_records.update.submit_button"
+                  : "daily_records.add.submit_button"
+              }
+            >
+              {(saveMutation.isPending || updateMutation.isPending) && (
+                <Loader2 size={14} className="mr-2 animate-spin" />
+              )}
+              {editingIndex !== null ? (
+                <>
+                  <Save size={14} className="mr-2" /> Update Record
+                </>
+              ) : (
+                <>
+                  <Plus size={14} className="mr-2" /> Add Record
+                </>
+              )}
+            </Button>
+            {editingIndex !== null && (
+              <Button
+                variant="outline"
+                onClick={handleCancelEdit}
+                data-ocid="daily_records.cancel.button"
+              >
+                <X size={14} className="mr-2" /> Cancel
+              </Button>
             )}
-            <Plus size={14} className="mr-2" /> Add Record
-          </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -1645,6 +1836,7 @@ function DailyRecordsTab({
                     <TableHead>Marks</TableHead>
                     <TableHead>%</TableHead>
                     <TableHead>Remarks</TableHead>
+                    {canEditData && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1656,6 +1848,7 @@ function DailyRecordsTab({
                     const extraRemarks = a.remarks.includes(" — ")
                       ? a.remarks.split(" — ").slice(1).join(" — ")
                       : "";
+                    const globalIndex = (activities ?? []).indexOf(a);
                     return (
                       <TableRow
                         key={`${a.description}-${a.activityType}-${a.grade}-${i}`}
@@ -1690,6 +1883,18 @@ function DailyRecordsTab({
                         <TableCell className="text-muted-foreground text-sm">
                           {extraRemarks}
                         </TableCell>
+                        {canEditData && (
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleEdit(a, globalIndex)}
+                              data-ocid={`daily_records.edit_button.${i + 1}`}
+                            >
+                              <Pencil size={14} />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}

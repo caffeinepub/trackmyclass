@@ -280,6 +280,8 @@ export interface backendInterface {
     deleteAttendanceRecordWithSession(sessionToken: string, studentId: StudentId, month: string, session: string): Promise<void>;
     deleteSportsRecordWithSession(sessionToken: string, studentId: StudentId, entryId: string): Promise<void>;
     deleteActivityRecordWithSession(sessionToken: string, studentId: StudentId, index: bigint): Promise<void>;
+    updateSportsRecordWithSession(sessionToken: string, studentId: StudentId, entryId: string, updated: SportsRecord): Promise<void>;
+    updateActivityRecordWithSession(sessionToken: string, studentId: StudentId, index: bigint, updated: ActivityRecord): Promise<void>;
     getActivityRecords(studentId: StudentId): Promise<Array<ActivityRecord>>;
     getActivityRecordsWithSession(sessionToken: string, studentId: StudentId): Promise<Array<ActivityRecord>>;
     getAllRecordsForStudent(studentId: StudentId): Promise<{
@@ -635,6 +637,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteActivityRecordWithSession(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async updateSportsRecordWithSession(arg0: string, arg1: StudentId, arg2: string, arg3: SportsRecord): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateSportsRecordWithSession(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateSportsRecordWithSession(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async updateActivityRecordWithSession(arg0: string, arg1: StudentId, arg2: bigint, arg3: ActivityRecord): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateActivityRecordWithSession(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateActivityRecordWithSession(arg0, arg1, arg2, arg3);
             return result;
         }
     }

@@ -412,6 +412,8 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'setStudentIdForUserProfile' : IDL.Func([IDL.Text], [], []),
+  'updateSportsRecordWithSession' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, SportsRecord], [], []),
+  'updateActivityRecordWithSession' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat, ActivityRecord], [], []),
   'updateUserPassword' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'uploadCircular' : IDL.Func(
       [
@@ -877,6 +879,8 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'setStudentIdForUserProfile' : IDL.Func([IDL.Text], [], []),
+    'updateSportsRecordWithSession' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, SportsRecord], [], []),
+    'updateActivityRecordWithSession' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat, ActivityRecord], [], []),
     'updateUserPassword' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'uploadCircular' : IDL.Func(
         [
