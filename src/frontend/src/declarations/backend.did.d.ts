@@ -101,6 +101,30 @@ export interface SportsRecord {
   'remarks' : string,
 }
 export type StudentId = string;
+
+export type TeacherId = string;
+export interface TeacherProfile {
+  'teacherId' : TeacherId,
+  'name' : string,
+  'designation' : string,
+  'subject' : string,
+  'gender' : string,
+  'dateOfBirth' : string,
+  'joiningDate' : string,
+  'contact' : string,
+  'email' : string,
+  'address' : string,
+  'photoUrl' : string,
+}
+export interface TeacherMonthlyAttendance {
+  'teacherId' : TeacherId,
+  'session' : string,
+  'month' : string,
+  'present' : bigint,
+  'casualLeave' : bigint,
+  'extraordinaryLeave' : bigint,
+  'totalWorkingDays' : bigint,
+}
 export interface StudentProfile {
   'pen' : string,
   'tribe' : string,
@@ -383,6 +407,12 @@ export interface _SERVICE {
     [string, string, string, ExternalBlob, string],
     undefined
   >,
+  'saveTeacherProfileWithSession' : ActorMethod<[string, TeacherProfile], undefined>,
+  'getTeacherProfileWithSession' : ActorMethod<[string, TeacherId], TeacherProfile>,
+  'listAllTeacherProfilesWithSession' : ActorMethod<[string], Array<TeacherProfile>>,
+  'deleteTeacherProfileWithSession' : ActorMethod<[string, TeacherId], undefined>,
+  'saveTeacherAttendanceWithSession' : ActorMethod<[string, TeacherMonthlyAttendance], undefined>,
+  'getTeacherAttendanceWithSession' : ActorMethod<[string, TeacherId, string], Array<TeacherMonthlyAttendance>>,
   'validateSession' : ActorMethod<[string], [] | [SessionInfo]>,
 }
 export declare const idlService: IDL.ServiceClass;

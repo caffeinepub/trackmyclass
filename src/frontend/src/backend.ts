@@ -151,6 +151,30 @@ export interface _CaffeineStorageCreateCertificateResult {
     blob_hash: string;
 }
 export type StudentId = string;
+
+export interface TeacherProfile {
+    teacherId: string;
+    name: string;
+    designation: string;
+    subject: string;
+    gender: string;
+    dateOfBirth: string;
+    joiningDate: string;
+    contact: string;
+    email: string;
+    address: string;
+    photoUrl: string;
+}
+
+export interface TeacherMonthlyAttendance {
+    teacherId: string;
+    session: string;
+    month: string;
+    present: bigint;
+    casualLeave: bigint;
+    extraordinaryLeave: bigint;
+    totalWorkingDays: bigint;
+}
 export interface MonthlyAttendance {
     month: string;
     studentId: StudentId;
@@ -355,6 +379,12 @@ export interface backendInterface {
     uploadClassStudyMaterial(sessionToken: string, id: string, title: string, classLevel: bigint, subject: string, description: string, fileBlob: ExternalBlob, fileName: string, uploadedAt: string): Promise<void>;
     uploadStudyMaterial(id: string, name: string, blob: ExternalBlob, comments: string): Promise<void>;
     uploadStudyMaterialWithSession(sessionToken: string, id: string, name: string, blob: ExternalBlob, comments: string): Promise<void>;
+    saveTeacherProfileWithSession(sessionToken: string, profile: TeacherProfile): Promise<void>;
+    getTeacherProfileWithSession(sessionToken: string, teacherId: string): Promise<TeacherProfile>;
+    listAllTeacherProfilesWithSession(sessionToken: string): Promise<Array<TeacherProfile>>;
+    deleteTeacherProfileWithSession(sessionToken: string, teacherId: string): Promise<void>;
+    saveTeacherAttendanceWithSession(sessionToken: string, attendance: TeacherMonthlyAttendance): Promise<void>;
+    getTeacherAttendanceWithSession(sessionToken: string, teacherId: string, session: string): Promise<Array<TeacherMonthlyAttendance>>;
     validateSession(sessionToken: string): Promise<SessionInfo | null>;
     promoteStudentWithSession(sessionToken: string, studentId: StudentId, newClassLevel: bigint, newSession: string): Promise<void>;
 }
@@ -1456,6 +1486,88 @@ export class Backend implements backendInterface {
             await this.actor.promoteStudentWithSession(arg0, arg1, arg2, arg3);
         }
     }
+
+    async saveTeacherProfileWithSession(arg0: string, arg1: TeacherProfile): Promise<void> {
+        try {
+            try {
+                await this.actor.saveTeacherProfileWithSession(arg0, arg1 as any);
+            } catch(e: any) {
+                await this.actor.saveTeacherProfileWithSession(arg0, arg1 as any);
+            }
+        } catch(e: any) {
+            await this.actor.saveTeacherProfileWithSession(arg0, arg1 as any);
+        }
+    }
+
+    async getTeacherProfileWithSession(arg0: string, arg1: string): Promise<TeacherProfile> {
+        try {
+            try {
+                const result = await this.actor.getTeacherProfileWithSession(arg0, arg1);
+                return result as unknown as TeacherProfile;
+            } catch(e: any) {
+                const result = await this.actor.getTeacherProfileWithSession(arg0, arg1);
+                return result as unknown as TeacherProfile;
+            }
+        } catch(e: any) {
+            const result = await this.actor.getTeacherProfileWithSession(arg0, arg1);
+            return result as unknown as TeacherProfile;
+        }
+    }
+
+    async listAllTeacherProfilesWithSession(arg0: string): Promise<Array<TeacherProfile>> {
+        try {
+            try {
+                const result = await this.actor.listAllTeacherProfilesWithSession(arg0);
+                return result as unknown as Array<TeacherProfile>;
+            } catch(e: any) {
+                const result = await this.actor.listAllTeacherProfilesWithSession(arg0);
+                return result as unknown as Array<TeacherProfile>;
+            }
+        } catch(e: any) {
+            const result = await this.actor.listAllTeacherProfilesWithSession(arg0);
+            return result as unknown as Array<TeacherProfile>;
+        }
+    }
+
+    async deleteTeacherProfileWithSession(arg0: string, arg1: string): Promise<void> {
+        try {
+            try {
+                await this.actor.deleteTeacherProfileWithSession(arg0, arg1);
+            } catch(e: any) {
+                await this.actor.deleteTeacherProfileWithSession(arg0, arg1);
+            }
+        } catch(e: any) {
+            await this.actor.deleteTeacherProfileWithSession(arg0, arg1);
+        }
+    }
+
+    async saveTeacherAttendanceWithSession(arg0: string, arg1: TeacherMonthlyAttendance): Promise<void> {
+        try {
+            try {
+                await this.actor.saveTeacherAttendanceWithSession(arg0, arg1 as any);
+            } catch(e: any) {
+                await this.actor.saveTeacherAttendanceWithSession(arg0, arg1 as any);
+            }
+        } catch(e: any) {
+            await this.actor.saveTeacherAttendanceWithSession(arg0, arg1 as any);
+        }
+    }
+
+    async getTeacherAttendanceWithSession(arg0: string, arg1: string, arg2: string): Promise<Array<TeacherMonthlyAttendance>> {
+        try {
+            try {
+                const result = await this.actor.getTeacherAttendanceWithSession(arg0, arg1, arg2);
+                return result as unknown as Array<TeacherMonthlyAttendance>;
+            } catch(e: any) {
+                const result = await this.actor.getTeacherAttendanceWithSession(arg0, arg1, arg2);
+                return result as unknown as Array<TeacherMonthlyAttendance>;
+            }
+        } catch(e: any) {
+            const result = await this.actor.getTeacherAttendanceWithSession(arg0, arg1, arg2);
+            return result as unknown as Array<TeacherMonthlyAttendance>;
+        }
+    }
+
     async validateSession(arg0: string): Promise<SessionInfo | null> {
         if (this.processError) {
             try {

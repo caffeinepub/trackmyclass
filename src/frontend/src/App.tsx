@@ -11,11 +11,13 @@ import SettingsPage from "./pages/SettingsPage";
 import StudentDetailPage from "./pages/StudentDetailPage";
 import StudentsPage from "./pages/StudentsPage";
 import StudyMaterialsPage from "./pages/StudyMaterialsPage";
+import TeachersPage from "./pages/TeachersPage";
 import UsersPage from "./pages/UsersPage";
 
 export type { AuthSession };
 export type AppPage =
   | "dashboard"
+  | "teachers"
   | "students"
   | "student-detail"
   | "settings"
@@ -115,6 +117,8 @@ export default function App() {
 
   const renderPage = () => {
     switch (currentPage) {
+      case "teachers":
+        return <TeachersPage nav={nav} />;
       case "students":
         return <StudentsPage nav={nav} />;
       case "student-detail":

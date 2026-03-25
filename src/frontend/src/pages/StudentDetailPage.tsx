@@ -118,6 +118,7 @@ interface Props {
 interface StudentPageCtx {
   sessionToken: string;
   canEditData: boolean;
+  canEditProfile: boolean;
   academicSession: string | null;
   isResultsFinalized: boolean;
   setResultsFinalized: (v: boolean) => void;
@@ -125,6 +126,7 @@ interface StudentPageCtx {
 const StudentPageContext = createContext<StudentPageCtx>({
   sessionToken: "",
   canEditData: false,
+  canEditProfile: false,
   academicSession: null,
   isResultsFinalized: false,
   setResultsFinalized: () => {},
@@ -156,7 +158,7 @@ function GradeBadge({ grade }: { grade: string }) {
 // PROFILE TAB
 // ─────────────────────────────────────────
 function ProfileTab({ profile }: { profile: StudentProfile }) {
-  const { sessionToken, canEditData: isAdmin } = useStudentPage();
+  const { sessionToken, canEditProfile: isAdmin } = useStudentPage();
   const [form, setForm] = useState<StudentProfile>(profile);
   const [photoUrl, setPhotoUrl] = useState<string>("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -2572,6 +2574,7 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
 
   const classLevel = Number(profile.classLevel);
   const isAdmin = canEdit(session.role);
+  const isAdminOrDev = session.role === "developer" || session.role === "admin";
   const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
 
   const handlePromote = async () => {
@@ -2600,6 +2603,7 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
       value={{
         sessionToken: session.sessionToken,
         canEditData: isAdmin,
+        canEditProfile: isAdminOrDev,
         academicSession: nav.academicSession,
         isResultsFinalized: isFinalized,
         setResultsFinalized: _setIsFinalized,

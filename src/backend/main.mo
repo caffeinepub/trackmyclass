@@ -109,6 +109,33 @@ actor {
     remarks : Text;
   };
 
+
+  public type TeacherId = Text;
+
+  public type TeacherProfile = {
+    teacherId : TeacherId;
+    name : Text;
+    designation : Text;
+    subject : Text;
+    gender : Text;
+    dateOfBirth : Text;
+    joiningDate : Text;
+    contact : Text;
+    email : Text;
+    address : Text;
+    photoUrl : Text;
+  };
+
+  public type TeacherMonthlyAttendance = {
+    teacherId : TeacherId;
+    session : Text;
+    month : Text;
+    present : Nat;
+    casualLeave : Nat;
+    extraordinaryLeave : Nat;
+    totalWorkingDays : Nat;
+  };
+
   public type ReportCard = {
     session : Text;
     studentId : StudentId;
@@ -212,6 +239,8 @@ actor {
   let classStudyMaterials = Map.empty<Text, ClassStudyMaterial>();
   let archivedStudents = Map.empty<StudentId, Bool>();
   let sessionMarksStore = Map.empty<Text, [SubjectMarks]>();
+  let teacherProfiles = Map.empty<TeacherId, TeacherProfile>();
+  let teacherAttendance = Map.empty<TeacherId, [TeacherMonthlyAttendance]>();
   stable var currentAppSession : Text = "2025-26";
 
   // Initialize developer account
@@ -1134,6 +1163,77 @@ actor {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) { Runtime.trap("Unauthorized: Only users can view students by class") };
     studentProfiles.values().toArray().filter(func(profile) { profile.classLevel == classLevel });
   };
+
+  // ===== TEACHER MANAGEMENT =====
+
+  public func saveTeacherProfileWithSession(sessionToken : Text, profile : TeacherProfile) : async () {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        if (not isAdminOrDeveloper(sessionInfo)) { Runtime.trap("Unauthorized: Only Admin and Developer can save teacher profiles") };
+        teacherProfiles.add(profile.teacherId, profile);
+      };
+    };
+  };
+
+  public query func getTeacherProfileWithSession(sessionToken : Text, teacherId : TeacherId) : async TeacherProfile {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        switch (teacherProfiles.get(teacherId)) {
+          case (null) { Runtime.trap("Teacher profile does not exist") };
+          case (?profile) { profile };
+        };
+      };
+    };
+  };
+
+  public query func listAllTeacherProfilesWithSession(sessionToken : Text) : async [TeacherProfile] {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        teacherProfiles.values().toArray();
+      };
+    };
+  };
+
+  public func deleteTeacherProfileWithSession(sessionToken : Text, teacherId : TeacherId) : async () {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        if (not isAdminOrDeveloper(sessionInfo)) { Runtime.trap("Unauthorized: Only Admin and Developer can delete teacher profiles") };
+        teacherProfiles.remove(teacherId);
+        teacherAttendance.remove(teacherId);
+      };
+    };
+  };
+
+  public func saveTeacherAttendanceWithSession(sessionToken : Text, attendance : TeacherMonthlyAttendance) : async () {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        if (not isAdminOrDeveloper(sessionInfo) and sessionInfo.role != "classTeacher") {
+          Runtime.trap("Unauthorized: Only Admin, Developer, and Class Teacher can save teacher attendance")
+        };
+        let existing = switch (teacherAttendance.get(attendance.teacherId)) { case (null) { [] }; case (?r) { r } };
+        let filtered = existing.filter(func(a : TeacherMonthlyAttendance) : Bool {
+          not (a.month == attendance.month and a.session == attendance.session)
+        });
+        teacherAttendance.add(attendance.teacherId, filtered.concat([attendance]));
+      };
+    };
+  };
+
+  public query func getTeacherAttendanceWithSession(sessionToken : Text, teacherId : TeacherId, session : Text) : async [TeacherMonthlyAttendance] {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        let all = switch (teacherAttendance.get(teacherId)) { case (null) { [] }; case (?r) { r } };
+        all.filter(func(a : TeacherMonthlyAttendance) : Bool { a.session == session });
+      };
+    };
+  };
+
   system func preupgrade() {
     stableUsers := users.values().toArray();
   };

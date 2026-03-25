@@ -17,6 +17,7 @@ import {
   Menu,
   Settings,
   ShieldCheck,
+  UserCog,
   Users,
   X,
 } from "lucide-react";
@@ -71,6 +72,7 @@ export default function Layout({ nav, children, logout }: LayoutProps) {
 
   const baseNavLinks = [
     { page: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
+    { page: "teachers" as const, label: "Teachers", icon: UserCog },
     { page: "students" as const, label: "Students", icon: Users },
     { page: "notice-board" as const, label: "Notice Board", icon: Bell },
     { page: "circulars" as const, label: "Circulars", icon: FileText },

@@ -173,6 +173,31 @@ export enum UserRole {
     user = "user",
     guest = "guest"
 }
+
+export interface TeacherProfile {
+    teacherId: string;
+    name: string;
+    designation: string;
+    subject: string;
+    gender: string;
+    dateOfBirth: string;
+    joiningDate: string;
+    contact: string;
+    email: string;
+    address: string;
+    photoUrl: string;
+}
+
+export interface TeacherMonthlyAttendance {
+    teacherId: string;
+    session: string;
+    month: string;
+    present: bigint;
+    casualLeave: bigint;
+    extraordinaryLeave: bigint;
+    totalWorkingDays: bigint;
+}
+
 export interface backendInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     createUserAccount(sessionToken: string, account: UserAccount): Promise<void>;
@@ -262,5 +287,11 @@ export interface backendInterface {
     uploadClassStudyMaterial(sessionToken: string, id: string, title: string, classLevel: bigint, subject: string, description: string, fileBlob: ExternalBlob, fileName: string, uploadedAt: string): Promise<void>;
     uploadStudyMaterial(id: string, name: string, blob: ExternalBlob, comments: string): Promise<void>;
     uploadStudyMaterialWithSession(sessionToken: string, id: string, name: string, blob: ExternalBlob, comments: string): Promise<void>;
+    saveTeacherProfileWithSession(sessionToken: string, profile: TeacherProfile): Promise<void>;
+    getTeacherProfileWithSession(sessionToken: string, teacherId: string): Promise<TeacherProfile>;
+    listAllTeacherProfilesWithSession(sessionToken: string): Promise<Array<TeacherProfile>>;
+    deleteTeacherProfileWithSession(sessionToken: string, teacherId: string): Promise<void>;
+    saveTeacherAttendanceWithSession(sessionToken: string, attendance: TeacherMonthlyAttendance): Promise<void>;
+    getTeacherAttendanceWithSession(sessionToken: string, teacherId: string, session: string): Promise<Array<TeacherMonthlyAttendance>>;
     validateSession(sessionToken: string): Promise<SessionInfo | null>;
 }

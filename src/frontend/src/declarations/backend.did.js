@@ -32,6 +32,29 @@ export const UserAccount = IDL.Record({
   'assignedClass' : IDL.Opt(IDL.Nat),
 });
 export const StudentId = IDL.Text;
+export const TeacherId = IDL.Text;
+export const TeacherProfile = IDL.Record({
+  'teacherId' : TeacherId,
+  'name' : IDL.Text,
+  'designation' : IDL.Text,
+  'subject' : IDL.Text,
+  'gender' : IDL.Text,
+  'dateOfBirth' : IDL.Text,
+  'joiningDate' : IDL.Text,
+  'contact' : IDL.Text,
+  'email' : IDL.Text,
+  'address' : IDL.Text,
+  'photoUrl' : IDL.Text,
+});
+export const TeacherMonthlyAttendance = IDL.Record({
+  'teacherId' : TeacherId,
+  'session' : IDL.Text,
+  'month' : IDL.Text,
+  'present' : IDL.Nat,
+  'casualLeave' : IDL.Nat,
+  'extraordinaryLeave' : IDL.Nat,
+  'totalWorkingDays' : IDL.Nat,
+});
 export const ActivityRecord = IDL.Record({
   'activityType' : IDL.Text,
   'studentId' : StudentId,
@@ -936,6 +959,12 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'saveTeacherProfileWithSession' : IDL.Func([IDL.Text, TeacherProfile], [], []),
+    'getTeacherProfileWithSession' : IDL.Func([IDL.Text, TeacherId], [TeacherProfile], ['query']),
+    'listAllTeacherProfilesWithSession' : IDL.Func([IDL.Text], [IDL.Vec(TeacherProfile)], ['query']),
+    'deleteTeacherProfileWithSession' : IDL.Func([IDL.Text, TeacherId], [], []),
+    'saveTeacherAttendanceWithSession' : IDL.Func([IDL.Text, TeacherMonthlyAttendance], [], []),
+    'getTeacherAttendanceWithSession' : IDL.Func([IDL.Text, TeacherId, IDL.Text], [IDL.Vec(TeacherMonthlyAttendance)], ['query']),
     'validateSession' : IDL.Func([IDL.Text], [IDL.Opt(SessionInfo)], ['query']),
   });
 };
