@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/table";
 import {
   Archive,
+  CalendarDays,
   ChevronDown,
   ChevronUp,
   Loader2,
@@ -127,7 +128,14 @@ export default function StudentsPage({ nav }: Props) {
     useState<StudentProfile | null>(null);
   const [archivedOpen, setArchivedOpen] = useState(false);
 
-  const filtered = (students ?? []).filter((s) => {
+  const { academicSession } = nav;
+
+  // Session-filtered students base list
+  const sessionStudents = academicSession
+    ? (students ?? []).filter((s) => s.session === academicSession)
+    : (students ?? []);
+
+  const filtered = sessionStudents.filter((s) => {
     const matchSearch =
       !search ||
       s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -191,10 +199,24 @@ export default function StudentsPage({ nav }: Props) {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const archivedList = archivedStudents ?? [];
+  const archivedList = academicSession
+    ? (archivedStudents ?? []).filter((s) => s.session === academicSession)
+    : (archivedStudents ?? []);
 
   return (
     <div data-ocid="students.page">
+      {!academicSession && (
+        <div
+          className="flex items-center gap-3 p-4 mb-6 rounded-lg border border-amber-200 bg-amber-50 text-amber-800"
+          data-ocid="students.no_session.empty_state"
+        >
+          <CalendarDays size={18} className="shrink-0" />
+          <p className="text-sm font-medium">
+            Please select an academic session from the Dashboard to view
+            students.
+          </p>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="font-display font-bold text-2xl">Students</h1>

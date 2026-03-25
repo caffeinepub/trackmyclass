@@ -118,10 +118,16 @@ interface Props {
 interface StudentPageCtx {
   sessionToken: string;
   canEditData: boolean;
+  academicSession: string | null;
+  isResultsFinalized: boolean;
+  setResultsFinalized: (v: boolean) => void;
 }
 const StudentPageContext = createContext<StudentPageCtx>({
   sessionToken: "",
   canEditData: false,
+  academicSession: null,
+  isResultsFinalized: false,
+  setResultsFinalized: () => {},
 });
 const useStudentPage = () => useContext(StudentPageContext);
 
@@ -522,7 +528,16 @@ function MarksTab({
   studentId,
   classLevel,
 }: { studentId: string; classLevel: number }) {
-  const { sessionToken } = useStudentPage();
+  const {
+    sessionToken,
+    canEditData,
+    academicSession,
+    isResultsFinalized,
+    setResultsFinalized,
+  } = useStudentPage();
+  const finalizedKey = `finalized_${studentId}_${academicSession ?? ""}`;
+  const isFinalized = isResultsFinalized;
+  const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
   const { data: marksData, isLoading } = useSubjectMarks(
     sessionToken,
     studentId,
@@ -637,6 +652,16 @@ function MarksTab({
 
   return (
     <div className="space-y-4" data-ocid="marks.section">
+      {isFinalized && (
+        <div
+          className="flex items-center gap-2 px-3 py-2 rounded-md bg-green-50 border border-green-200"
+          data-ocid="marks.finalized.success_state"
+        >
+          <span className="text-green-600 font-semibold text-sm">
+            ✓ Results Finalized — Marks Locked
+          </span>
+        </div>
+      )}
       {lower ? (
         <Card>
           <CardHeader>
@@ -699,6 +724,7 @@ function MarksTab({
                                   t.value = t.value.slice(0, 2);
                               }}
                               className="w-14 h-7 text-sm"
+                              disabled={isFinalized}
                             />
                           </TableCell>
                         ))}
@@ -824,6 +850,7 @@ function MarksTab({
                                   t.value = t.value.slice(0, d);
                               }}
                               className="w-14 h-7 text-sm"
+                              disabled={isFinalized}
                             />
                           </TableCell>
                         ))}
@@ -860,6 +887,7 @@ function MarksTab({
                                   t.value = t.value.slice(0, d);
                               }}
                               className="w-14 h-7 text-sm"
+                              disabled={isFinalized}
                             />
                           </TableCell>
                         ))}
@@ -882,16 +910,69 @@ function MarksTab({
         </Card>
       )}
 
-      <Button
-        onClick={handleSave}
-        disabled={saveMutation.isPending}
-        data-ocid="marks.save.submit_button"
-      >
-        {saveMutation.isPending && (
-          <Loader2 size={14} className="mr-2 animate-spin" />
-        )}
-        <Save size={14} className="mr-2" /> Save Marks
-      </Button>
+      {!isFinalized && (
+        <Button
+          onClick={handleSave}
+          disabled={saveMutation.isPending}
+          data-ocid="marks.save.submit_button"
+        >
+          {saveMutation.isPending && (
+            <Loader2 size={14} className="mr-2 animate-spin" />
+          )}
+          <Save size={14} className="mr-2" /> Save Marks
+        </Button>
+      )}
+
+      {/* Finalize Results */}
+      {!isFinalized && canEditData && (
+        <div className="pt-2">
+          <Button
+            variant="outline"
+            className="border-amber-400 text-amber-600 hover:bg-amber-50"
+            onClick={() => setShowFinalizeDialog(true)}
+            data-ocid="marks.finalize.button"
+          >
+            🔒 Finalize Results
+          </Button>
+          <p className="text-xs text-muted-foreground mt-1">
+            Finalizing locks marks and enables student promotion.
+          </p>
+        </div>
+      )}
+
+      {/* Finalize Confirm Dialog */}
+      <Dialog open={showFinalizeDialog} onOpenChange={setShowFinalizeDialog}>
+        <DialogContent data-ocid="marks.finalize.dialog">
+          <DialogHeader>
+            <DialogTitle>Finalize Results?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Once you finalize results for this session, marks will be locked and
+            cannot be edited. The Promote option will become available. Are you
+            sure?
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowFinalizeDialog(false)}
+              data-ocid="marks.finalize.cancel_button"
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={() => {
+                localStorage.setItem(finalizedKey, "true");
+                setResultsFinalized(true);
+                setShowFinalizeDialog(false);
+              }}
+              data-ocid="marks.finalize.confirm_button"
+            >
+              Yes, Finalize
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -923,13 +1004,13 @@ type AttendanceRowState = {
 };
 
 function AttendanceTab({ studentId }: { studentId: string }) {
-  const { sessionToken, canEditData } = useStudentPage();
+  const { sessionToken, canEditData, academicSession } = useStudentPage();
   const { data: attendance, isLoading } = useMonthlyAttendance(
     sessionToken,
     studentId,
   );
   const saveMutation = useSaveAttendance(sessionToken, studentId);
-  const [sessionYear, setSessionYear] = useState("2025-26");
+  const [sessionYear, setSessionYear] = useState(academicSession ?? "2025-26");
   const [rows, setRows] = useState<Record<string, AttendanceRowState>>(() =>
     Object.fromEntries(
       SCHOOL_YEAR_MONTHS.map((m) => [
@@ -1160,8 +1241,14 @@ function AttendanceTab({ studentId }: { studentId: string }) {
 // SPORTS TAB
 // ─────────────────────────────────────────
 function SportsTab({ studentId }: { studentId: string }) {
-  const { sessionToken, canEditData } = useStudentPage();
-  const { data: sports, isLoading } = useSportsRecords(sessionToken, studentId);
+  const { sessionToken, canEditData, academicSession } = useStudentPage();
+  const { data: sportsAll, isLoading } = useSportsRecords(
+    sessionToken,
+    studentId,
+  );
+  const sports = academicSession
+    ? (sportsAll ?? []).filter((s) => s.session === academicSession)
+    : sportsAll;
   const saveMutation = useSaveSportsRecord(sessionToken, studentId);
   const updateMutation = useUpdateSportsRecord(sessionToken, studentId);
   const deleteMutation = useDeleteSportsRecord(sessionToken, studentId);
@@ -1403,11 +1490,14 @@ function SportsTab({ studentId }: { studentId: string }) {
 // ACTIVITIES TAB
 // ─────────────────────────────────────────
 function ActivitiesTab({ studentId }: { studentId: string }) {
-  const { sessionToken, canEditData } = useStudentPage();
-  const { data: activities, isLoading } = useActivityRecords(
+  const { sessionToken, canEditData, academicSession } = useStudentPage();
+  const { data: activitiesAll, isLoading } = useActivityRecords(
     sessionToken,
     studentId,
   );
+  const activities = academicSession
+    ? (activitiesAll ?? []).filter((a) => a.session === academicSession)
+    : activitiesAll;
   const saveMutation = useSaveActivityRecord(sessionToken, studentId);
   const updateMutation = useUpdateActivityRecord(sessionToken, studentId);
   const deleteMutation = useDeleteActivityRecord(sessionToken, studentId);
@@ -2412,6 +2502,11 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [promoteSession, setPromoteSession] = useState("");
   const [promoting, setPromoting] = useState(false);
+  const [isFinalized, setIsFinalized] = useState(() => {
+    const key = `finalized_${studentId}_${nav.academicSession ?? ""}`;
+    return localStorage.getItem(key) === "true";
+  });
+  const _setIsFinalized = setIsFinalized;
   const { actor } = useActor();
 
   if (isLoading) {
@@ -2450,7 +2545,7 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
     if (!actor) return;
     setPromoting(true);
     try {
-      await (actor as any).promoteStudentWithSession(
+      await actor.promoteStudentWithSession(
         session.sessionToken,
         studentId,
         BigInt(classLevel + 1),
@@ -2469,7 +2564,13 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
 
   return (
     <StudentPageContext.Provider
-      value={{ sessionToken: session.sessionToken, canEditData: isAdmin }}
+      value={{
+        sessionToken: session.sessionToken,
+        canEditData: isAdmin,
+        academicSession: nav.academicSession,
+        isResultsFinalized: isFinalized,
+        setResultsFinalized: _setIsFinalized,
+      }}
     >
       <div data-ocid="student_detail.page">
         <div className="flex items-start gap-4 mb-6">
@@ -2499,7 +2600,7 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
                 Session: {profile.session}
               </span>
             </div>
-            {isAdmin && classLevel < 8 && (
+            {isAdmin && classLevel < 8 && isFinalized && (
               <Button
                 size="sm"
                 variant="outline"
@@ -2513,6 +2614,14 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
                 <TrendingUp size={14} className="mr-1" />
                 Promote to Class {ROMAN[classLevel]}
               </Button>
+            )}
+            {isAdmin && classLevel < 8 && !isFinalized && (
+              <p
+                className="text-xs text-muted-foreground mt-1"
+                data-ocid="student_detail.promote.hint"
+              >
+                Finalize results in Marks tab to enable promotion.
+              </p>
             )}
           </div>
         </div>

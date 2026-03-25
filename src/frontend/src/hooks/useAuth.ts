@@ -9,6 +9,7 @@ export interface AuthSession {
 }
 
 const SESSION_KEY = "trackmyclass_session";
+const ACTIVE_SESSION_KEY = "trackmyclass_active_session";
 
 export function canEdit(role: string): boolean {
   return role === "developer" || role === "admin" || role === "classTeacher";
@@ -157,6 +158,7 @@ export function useAuth() {
       }
     }
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(ACTIVE_SESSION_KEY);
     setSession(null);
   }, [actor, session]);
 

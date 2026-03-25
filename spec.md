@@ -1,53 +1,35 @@
 # TrackMyClass
 
 ## Current State
-
-TrackMyClass is a full-stack student record management system for VIVEKANANDA KENDRA VIDYALAYA RAGA. It manages student profiles (persistent across sessions), class-specific academic marks, 12-month attendance (April–March), sports records, co-curricular activities, daily records, report cards, and file uploads (notice board, circulars, study materials). Role-based access: Developer, Admin, Class Teacher, Teacher (view-only). Student profiles have a `session` field (e.g. "2025-26") and a `classLevel` field (1–8).
-
-Current backend marks storage: `subjectMarks` Map keyed by `studentId` only — no session tagging. Attendance, sports, activities, and report cards already have a `session` field.
-
-Settings page stores `academicYear` in localStorage only. No backend session tracking. No student promotion workflow. No confirmation before changing session year.
+- After login, user goes directly to the Dashboard with no session selection.
+- `academicSession` is a nullable state in App.tsx, never forced to be set.
+- The "Promote to Next Class" button is visible to any admin/developer for any student regardless of whether results are finalized.
+- No concept of locking marks or finalizing results exists.
+- Sessions list is not tracked; academic year comes from SettingsPage (localStorage).
 
 ## Requested Changes (Diff)
 
 ### Add
-
-1. **Individual Student Promotion** — a `promoteStudentWithSession` backend function that takes `sessionToken`, `studentId`, `newClassLevel` (Nat), and `newSession` (Text), and updates the student profile's `classLevel` and `session` fields. Restricted to Admin and Developer.
-
-2. **Session-aware marks storage** — a new `sessionMarksStore` Map keyed by `"studentId|session"` (Text). New functions:
-   - `saveSubjectMarksForSessionWithSession(token, studentId, session, marks)` — saves marks keyed by `studentId|session`
-   - `getSubjectMarksForSessionWithSession(token, studentId, session)` — retrieves marks for a specific session
-
-3. **Student session list** — `getStudentSessionListWithSession(token, studentId)` — returns deduplicated array of session strings that have any data (marks, attendance, sports, activities) for the given student.
-
-4. **Global app session tracking** — a stable var `currentAppSession: Text` initialized to `"2025-26"`. New functions:
-   - `setCurrentAppSessionWithSession(token, session)` — Admin/Developer only; updates the global current session
-   - `getCurrentAppSession()` — public query; returns the current session string
-
-5. **Session History tab** (frontend) — a new "Session History" tab on the student profile. Shows all past sessions for that student with collapsible panels per session year. Each panel shows: marks summary, attendance summary, sports records, and activities for that session. All roles can view.
-
-6. **Promote button** (frontend) — on the student profile page, Admin/Developer see a "Promote to Next Class" button. Clicking it opens a dialog showing current class → next class and asks for the new session year (pre-filled from currentAppSession). Confirming calls `promoteStudentWithSession`.
-
-7. **New Session confirmation** (frontend) — in Settings, changing the `academicYear` field and clicking Save shows a confirmation dialog: "Starting session [new year] will update the current session. All existing student academic data will be preserved in Session History. Continue?" Only after confirmation is the session saved to localStorage and `setCurrentAppSessionWithSession` called on the backend.
+- `SessionSelectPage` component: shown immediately after login, before the main app. Lists available sessions (from localStorage `trackmyclass_sessions`, defaulting to `["2025-26"]`). Admin/developer can add a new session inline. Clicking a session sets it as the active session and shows the main app.
+- `isFinalized` state per student per session: stored in localStorage as key `finalized_${studentId}_${session}`. Value is `"true"` when finalized.
+- "Finalize Results" button in the Marks tab (visible to admin/developer/classTeacher, only when not yet finalized). Clicking shows a confirm dialog, then sets the localStorage flag and re-renders.
+- "Results Finalized" badge in the Marks tab header when finalized.
 
 ### Modify
-
-- `saveSubjectMarksWithSession` — also mirror-save to `sessionMarksStore` using the student profile's current session at time of save. Retrieve the student profile's session field to use as the session key.
-- Settings page — wrap the Save button with a confirmation dialog when `academicYear` has changed.
-- StudentDetailPage — add the Session History tab and the Promote button.
+- `App.tsx`: After `session` is set (login), check if `academicSession` is set in state. If not, show `SessionSelectPage` instead of the main app. `setAcademicSession` must also persist the value to localStorage as `trackmyclass_active_session`. On app load, restore active session from localStorage if available (so refreshes don't reset to null).
+- `useAuth.ts` `logout`: clear `trackmyclass_active_session` from localStorage.
+- `StudentDetailPage.tsx`: The "Promote to Next Class" button must only be visible when `isFinalized` is true for the current student + active session. When `isFinalized`, mark entry inputs in the Marks tab must be disabled (read-only). Marks save button should also be hidden/disabled when finalized.
+- `SettingsPage.tsx`: Session creation (adding to `trackmyclass_sessions`) should only be accessible to developer and admin (already the case for Settings page, so no structural change needed — handled in SessionSelectPage).
 
 ### Remove
-
 - Nothing removed.
 
 ## Implementation Plan
-
-1. Add `sessionMarksStore` Map and `currentAppSession` stable var to backend.
-2. Add `promoteStudentWithSession` function (updates classLevel + session on profile).
-3. Add `saveSubjectMarksForSessionWithSession` and `getSubjectMarksForSessionWithSession` functions.
-4. Modify `saveSubjectMarksWithSession` to also save to `sessionMarksStore` using the student's current session.
-5. Add `getStudentSessionListWithSession` that scans attendance, sports, activities, sessionMarksStore, and reportCards for unique session strings for the student.
-6. Add `setCurrentAppSessionWithSession` (Admin/Developer) and `getCurrentAppSession` (public query).
-7. Frontend: add Session History tab to StudentDetailPage with collapsible panels per session.
-8. Frontend: add Promote button dialog to StudentDetailPage for Admin/Developer.
-9. Frontend: add confirmation dialog to Settings when academicYear changes.
+1. Create `src/frontend/src/pages/SessionSelectPage.tsx`: session list from localStorage, "+ New Session" for admin/developer, click to set session.
+2. Modify `App.tsx`: restore active session on mount, show `SessionSelectPage` if session is null, clear active session on logout call.
+3. Modify `useAuth.ts`: clear `trackmyclass_active_session` in logout.
+4. Modify `StudentDetailPage.tsx`:
+   - Add `isFinalized` computed from localStorage in `MarksTab`
+   - Pass `isFinalized` to mark entry fields (disable inputs when finalized)
+   - Add "Finalize Results" button with confirm dialog
+   - Gate Promote button on `isFinalized`

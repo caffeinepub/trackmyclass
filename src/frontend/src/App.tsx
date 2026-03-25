@@ -6,6 +6,7 @@ import CircularsPage from "./pages/CircularsPage";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import NoticeBoardPage from "./pages/NoticeBoardPage";
+import SessionSelectPage from "./pages/SessionSelectPage";
 import SettingsPage from "./pages/SettingsPage";
 import StudentDetailPage from "./pages/StudentDetailPage";
 import StudentsPage from "./pages/StudentsPage";
@@ -28,6 +29,8 @@ export interface AppNav {
   navigate: (page: AppPage, params?: Record<string, string>) => void;
   params: Record<string, string>;
   session: AuthSession;
+  academicSession: string | null;
+  setAcademicSession: (s: string) => void;
 }
 
 export default function App() {
@@ -35,6 +38,14 @@ export default function App() {
     useAuth();
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
   const [params, setParams] = useState<Record<string, string>>({});
+  const [academicSession, setAcademicSessionState] = useState<string | null>(
+    () => localStorage.getItem("trackmyclass_active_session"),
+  );
+
+  const setAcademicSession = (s: string) => {
+    localStorage.setItem("trackmyclass_active_session", s);
+    setAcademicSessionState(s);
+  };
 
   useEffect(() => {
     document.title = "TrackMyClass — VKV Raga";
@@ -69,7 +80,29 @@ export default function App() {
     );
   }
 
-  const nav: AppNav = { currentPage, navigate, params, session };
+  // After login, show session picker if no session selected yet
+  if (session && !academicSession) {
+    return (
+      <>
+        <SessionSelectPage
+          session={session}
+          onSelectSession={(s) => {
+            setAcademicSession(s);
+          }}
+        />
+        <Toaster />
+      </>
+    );
+  }
+
+  const nav: AppNav = {
+    currentPage,
+    navigate,
+    params,
+    session,
+    academicSession,
+    setAcademicSession,
+  };
 
   const canAccessSettings =
     session.role === "developer" || session.role === "admin";

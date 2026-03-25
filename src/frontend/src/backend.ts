@@ -356,6 +356,7 @@ export interface backendInterface {
     uploadStudyMaterial(id: string, name: string, blob: ExternalBlob, comments: string): Promise<void>;
     uploadStudyMaterialWithSession(sessionToken: string, id: string, name: string, blob: ExternalBlob, comments: string): Promise<void>;
     validateSession(sessionToken: string): Promise<SessionInfo | null>;
+    promoteStudentWithSession(sessionToken: string, studentId: StudentId, newClassLevel: bigint, newSession: string): Promise<void>;
 }
 import type { ActivityRecord as _ActivityRecord, Circular as _Circular, ClassStudyMaterial as _ClassStudyMaterial, ExternalBlob as _ExternalBlob, LowerClassMarks as _LowerClassMarks, MonthlyAttendance as _MonthlyAttendance, NoticePost as _NoticePost, ReportCard as _ReportCard, SessionInfo as _SessionInfo, SportsRecord as _SportsRecord, StudentId as _StudentId, StudentProfile as _StudentProfile, StudyMaterial as _StudyMaterial, SubjectMarks as _SubjectMarks, UpperClassMarks as _UpperClassMarks, UserAccount as _UserAccount, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -1441,6 +1442,18 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.uploadStudyMaterialWithSession(arg0, arg1, arg2, await to_candid_ExternalBlob_n43(this._uploadFile, this._downloadFile, arg3), arg4);
             return result;
+        }
+    }
+    async promoteStudentWithSession(arg0: string, arg1: StudentId, arg2: bigint, arg3: string): Promise<void> {
+        if (this.processError) {
+            try {
+                await this.actor.promoteStudentWithSession(arg0, arg1, arg2, arg3);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            await this.actor.promoteStudentWithSession(arg0, arg1, arg2, arg3);
         }
     }
     async validateSession(arg0: string): Promise<SessionInfo | null> {
