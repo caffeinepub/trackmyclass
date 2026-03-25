@@ -608,6 +608,31 @@ function MarksTab({
     }
   }, [marksData, classLevel]);
 
+  // Compute whether all required marks are filled to enable Finalize button
+  const canFinalize = (() => {
+    if (!marks || marks.length === 0) return false;
+    for (const m of marks) {
+      if (m.__kind__ === "lowerClass" && m.lowerClass) {
+        const lc = m.lowerClass;
+        if (
+          !lc.writtenTest1 ||
+          !lc.writtenTest2 ||
+          !lc.writtenTest3 ||
+          !lc.writtenTest4 ||
+          !lc.comprehensiveTest1 ||
+          !lc.comprehensiveTest2 ||
+          !lc.comprehensiveTest3 ||
+          !lc.comprehensiveTest4
+        )
+          return false;
+      } else if (m.__kind__ === "upperClass" && m.upperClass) {
+        const uc = m.upperClass;
+        if (!uc.pt1 || !uc.pt2 || !uc.term1Exam || !uc.term2Exam) return false;
+      }
+    }
+    return true;
+  })();
+
   const updateLower = (
     idx: number,
     field: keyof LowerClassMarks,
@@ -928,15 +953,23 @@ function MarksTab({
         <div className="pt-2">
           <Button
             variant="outline"
-            className="border-amber-400 text-amber-600 hover:bg-amber-50"
-            onClick={() => setShowFinalizeDialog(true)}
+            className="border-amber-400 text-amber-600 hover:bg-amber-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => canFinalize && setShowFinalizeDialog(true)}
+            disabled={!canFinalize}
             data-ocid="marks.finalize.button"
           >
             🔒 Finalize Results
           </Button>
-          <p className="text-xs text-muted-foreground mt-1">
-            Finalizing locks marks and enables student promotion.
-          </p>
+          {!canFinalize ? (
+            <p className="text-xs text-red-500 mt-1">
+              ⚠ Please fill in all required marks for all subjects before
+              finalizing.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-1">
+              Finalizing locks marks and enables student promotion.
+            </p>
+          )}
         </div>
       )}
 

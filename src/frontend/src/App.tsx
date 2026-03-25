@@ -39,12 +39,18 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
   const [params, setParams] = useState<Record<string, string>>({});
   const [academicSession, setAcademicSessionState] = useState<string | null>(
-    () => localStorage.getItem("trackmyclass_active_session"),
+    null,
   );
 
   const setAcademicSession = (s: string) => {
-    localStorage.setItem("trackmyclass_active_session", s);
     setAcademicSessionState(s);
+  };
+
+  // Clear session selection when user logs out
+  const handleLogout = async () => {
+    setAcademicSessionState(null);
+    setCurrentPage("dashboard");
+    await logout();
   };
 
   useEffect(() => {
@@ -81,7 +87,7 @@ export default function App() {
   }
 
   // After login, show session picker if no session selected yet
-  if (session && !academicSession) {
+  if (!academicSession) {
     return (
       <>
         <SessionSelectPage
@@ -139,7 +145,7 @@ export default function App() {
   };
 
   return (
-    <Layout nav={nav} logout={logout}>
+    <Layout nav={nav} logout={handleLogout}>
       {renderPage()}
       <Toaster />
     </Layout>
