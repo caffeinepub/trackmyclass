@@ -34,7 +34,8 @@ function isCanisterStoppedError(e: unknown): boolean {
 }
 
 export function useAuth() {
-  const { actor, isFetching, actorError } = useActor();
+  const { actor, isFetching } = useActor();
+  const actorError: boolean = false;
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);

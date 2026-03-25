@@ -1,6 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -30,6 +37,7 @@ import {
   Plus,
   Printer,
   Save,
+  TrendingUp,
   X,
 } from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
@@ -46,6 +54,7 @@ import type {
   SubjectMarks,
   UpperClassMarks,
 } from "../backend.d";
+import { SessionHistoryTab } from "../components/SessionHistoryTab";
 import { StudentAnalyticsTab } from "../components/StudentAnalyticsTab";
 import { useActor } from "../hooks/useActor";
 import { type AuthSession, canEdit } from "../hooks/useAuth";
@@ -63,7 +72,9 @@ import {
   useSaveSubjectMarks,
   useSportsRecords,
   useStudentProfile,
+  useStudentSessionList,
   useSubjectMarks,
+  useSubjectMarksForSession,
   useUpdateActivityRecord,
   useUpdateSportsRecord,
 } from "../hooks/useQueries";
@@ -2386,6 +2397,22 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
     studentId,
   );
   const { data: sports } = useSportsRecords(session.sessionToken, studentId);
+  const { data: allAttendance } = useMonthlyAttendance(
+    session.sessionToken,
+    studentId,
+  );
+  const { data: allSportsData } = useSportsRecords(
+    session.sessionToken,
+    studentId,
+  );
+  const { data: allActivitiesData } = useActivityRecords(
+    session.sessionToken,
+    studentId,
+  );
+  const [promoteOpen, setPromoteOpen] = useState(false);
+  const [promoteSession, setPromoteSession] = useState("");
+  const [promoting, setPromoting] = useState(false);
+  const { actor } = useActor();
 
   if (isLoading) {
     return (
@@ -2417,6 +2444,28 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
 
   const classLevel = Number(profile.classLevel);
   const isAdmin = canEdit(session.role);
+  const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
+
+  const handlePromote = async () => {
+    if (!actor) return;
+    setPromoting(true);
+    try {
+      await (actor as any).promoteStudentWithSession(
+        session.sessionToken,
+        studentId,
+        BigInt(classLevel + 1),
+        promoteSession,
+      );
+      toast.success(
+        `Promoted to Class ${ROMAN[classLevel]} (${promoteSession})`,
+      );
+      setPromoteOpen(false);
+    } catch (err: any) {
+      toast.error(`Promotion failed: ${err?.message ?? err}`);
+    } finally {
+      setPromoting(false);
+    }
+  };
 
   return (
     <StudentPageContext.Provider
@@ -2450,8 +2499,67 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
                 Session: {profile.session}
               </span>
             </div>
+            {isAdmin && classLevel < 8 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+                onClick={() => {
+                  setPromoteSession(profile.session || "");
+                  setPromoteOpen(true);
+                }}
+                data-ocid="student_detail.promote.button"
+              >
+                <TrendingUp size={14} className="mr-1" />
+                Promote to Class {ROMAN[classLevel]}
+              </Button>
+            )}
           </div>
         </div>
+
+        {/* Promote Dialog */}
+        <Dialog open={promoteOpen} onOpenChange={setPromoteOpen}>
+          <DialogContent data-ocid="student_detail.promote.dialog">
+            <DialogHeader>
+              <DialogTitle>Promote Student</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <p className="text-sm">
+                <strong>{profile.name}</strong> — Class {ROMAN[classLevel - 1]}{" "}
+                → Class {ROMAN[classLevel]}
+              </p>
+              <div className="space-y-1.5">
+                <Label>New Session Year</Label>
+                <Input
+                  data-ocid="student_detail.promote_session.input"
+                  value={promoteSession}
+                  onChange={(e) => setPromoteSession(e.target.value)}
+                  placeholder="e.g. 2026-27"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setPromoteOpen(false)}
+                data-ocid="student_detail.promote.cancel_button"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handlePromote}
+                disabled={promoting || !promoteSession.trim()}
+                className="bg-emerald-600 hover:bg-emerald-700"
+                data-ocid="student_detail.promote.confirm_button"
+              >
+                {promoting ? (
+                  <Loader2 size={14} className="mr-2 animate-spin" />
+                ) : null}
+                Confirm Promotion
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Tabs defaultValue="profile">
           <TabsList className="flex flex-wrap h-auto gap-1 mb-4 overflow-x-auto">
@@ -2511,6 +2619,13 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
             >
               Analytics
             </TabsTrigger>
+            <TabsTrigger
+              value="session-history"
+              data-ocid="student_detail.session_history.tab"
+              className="data-[state=active]:bg-amber-500 data-[state=active]:text-white"
+            >
+              Session History
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
@@ -2543,6 +2658,15 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
               studentId={studentId}
               classLevel={classLevel}
               sessionToken={session.sessionToken}
+            />
+          </TabsContent>
+          <TabsContent value="session-history">
+            <SessionHistoryTab
+              studentId={studentId}
+              sessionToken={session.sessionToken}
+              allAttendance={allAttendance ?? []}
+              allSports={allSportsData ?? []}
+              allActivities={allActivitiesData ?? []}
             />
           </TabsContent>
         </Tabs>

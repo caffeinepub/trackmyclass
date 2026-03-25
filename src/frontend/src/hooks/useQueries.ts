@@ -392,3 +392,39 @@ export function useSaveReportCard(sessionToken: string, studentId: string) {
     },
   });
 }
+
+export function useStudentSessionList(sessionToken: string, studentId: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery<string[]>({
+    queryKey: ["studentSessionList", sessionToken, studentId],
+    queryFn: async () => {
+      if (!actor || !studentId || !sessionToken) return [];
+      return (actor as any).getStudentSessionListWithSession(
+        sessionToken,
+        studentId,
+      );
+    },
+    enabled: !!actor && !isFetching && !!studentId && !!sessionToken,
+  });
+}
+
+export function useSubjectMarksForSession(
+  sessionToken: string,
+  studentId: string,
+  sessionYear: string,
+) {
+  const { actor, isFetching } = useActor();
+  return useQuery<SubjectMarks[]>({
+    queryKey: ["subjectMarksForSession", sessionToken, studentId, sessionYear],
+    queryFn: async () => {
+      if (!actor || !studentId || !sessionToken || !sessionYear) return [];
+      return (actor as any).getSubjectMarksForSessionWithSession(
+        sessionToken,
+        studentId,
+        sessionYear,
+      );
+    },
+    enabled:
+      !!actor && !isFetching && !!studentId && !!sessionToken && !!sessionYear,
+  });
+}

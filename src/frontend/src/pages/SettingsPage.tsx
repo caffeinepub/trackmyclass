@@ -1,3 +1,13 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -64,11 +74,18 @@ export default function SettingsPage({ nav }: Props) {
   const [uploadingLeft, setUploadingLeft] = useState(false);
   const [uploadingRight, setUploadingRight] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
+  const [pendingSettings, setPendingSettings] = useState<SchoolSettings | null>(
+    null,
+  );
   const fileLeftRef = useRef<HTMLInputElement>(null);
   const fileRightRef = useRef<HTMLInputElement>(null);
+  const originalAcademicYearRef = useRef<string>("");
 
   useEffect(() => {
-    setSettings(getSchoolSettings());
+    const loaded = getSchoolSettings();
+    setSettings(loaded);
+    originalAcademicYearRef.current = loaded.academicYear;
   }, []);
 
   const set = (field: keyof SchoolSettings, val: string) =>
@@ -110,17 +127,74 @@ export default function SettingsPage({ nav }: Props) {
     }
   };
 
-  const handleSave = () => {
+  const doSave = async (s: SchoolSettings) => {
     setSaving(true);
-    saveSchoolSettings(settings);
-    setTimeout(() => {
-      setSaving(false);
-      toast.success("Settings saved");
-    }, 300);
+    saveSchoolSettings(s);
+    // Sync session to backend if actor available
+    if (actor && nav.session?.sessionToken) {
+      try {
+        await (actor as any).setCurrentAppSessionWithSession(
+          nav.session.sessionToken,
+          s.academicYear,
+        );
+      } catch {
+        // non-fatal
+      }
+    }
+    originalAcademicYearRef.current = s.academicYear;
+    setSaving(false);
+    toast.success("Settings saved");
+  };
+
+  const handleSave = () => {
+    if (settings.academicYear !== originalAcademicYearRef.current) {
+      setPendingSettings(settings);
+      setNewSessionDialogOpen(true);
+    } else {
+      doSave(settings);
+    }
   };
 
   return (
     <div data-ocid="settings.page">
+      <AlertDialog
+        open={newSessionDialogOpen}
+        onOpenChange={setNewSessionDialogOpen}
+      >
+        <AlertDialogContent data-ocid="settings.new_session.dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Start New Session?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Starting session <strong>{pendingSettings?.academicYear}</strong>{" "}
+              will update the current session. All existing student academic
+              data will be preserved in Session History. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              data-ocid="settings.new_session.cancel_button"
+              onClick={() => {
+                setNewSessionDialogOpen(false);
+                setPendingSettings(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              data-ocid="settings.new_session.confirm_button"
+              onClick={() => {
+                if (pendingSettings) {
+                  doSave(pendingSettings);
+                }
+                setNewSessionDialogOpen(false);
+                setPendingSettings(null);
+              }}
+            >
+              Yes, Start New Session
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="mb-6">
         <h1 className="font-display font-bold text-2xl">Settings</h1>
         <p className="text-sm text-muted-foreground">

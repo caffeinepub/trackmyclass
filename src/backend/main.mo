@@ -211,6 +211,8 @@ actor {
   let circulars = Map.empty<Text, Circular>();
   let classStudyMaterials = Map.empty<Text, ClassStudyMaterial>();
   let archivedStudents = Map.empty<StudentId, Bool>();
+  let sessionMarksStore = Map.empty<Text, [SubjectMarks]>();
+  stable var currentAppSession : Text = "2025-26";
 
   // Initialize developer account
   let developerAccount : SessionAccount = {
@@ -532,6 +534,9 @@ actor {
         let profile = studentProfiles.get(studentId);
         if (not canModifyData(sessionInfo, profile)) { Runtime.trap("Unauthorized: You don't have permission to save marks for this student") };
         subjectMarks.add(studentId, marks);
+        // Also mirror-save to session-aware store
+        let sessionKey = switch (studentProfiles.get(studentId)) { case (null) { studentId # "|unknown" }; case (?p) { studentId # "|" # p.session } };
+        sessionMarksStore.add(sessionKey, marks);
       };
     };
   };
@@ -899,6 +904,86 @@ actor {
       case (?sessionInfo) {
         if (not isAdminOrDeveloper(sessionInfo)) { Runtime.trap("Unauthorized: Only Developer and Admin can delete study materials") };
         classStudyMaterials.remove(id);
+      };
+    };
+  };
+
+
+  // ===== SESSION MANAGEMENT =====
+
+  public func setCurrentAppSessionWithSession(sessionToken : Text, session : Text) : async () {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        if (not isAdminOrDeveloper(sessionInfo)) { Runtime.trap("Unauthorized: Only Admin and Developer can change the current session") };
+        currentAppSession := session;
+      };
+    };
+  };
+
+  public query func getCurrentAppSession() : async Text {
+    currentAppSession;
+  };
+
+  // ===== STUDENT PROMOTION =====
+
+  public func promoteStudentWithSession(sessionToken : Text, studentId : StudentId, newClassLevel : Nat, newSession : Text) : async () {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        if (not isAdminOrDeveloper(sessionInfo)) { Runtime.trap("Unauthorized: Only Admin and Developer can promote students") };
+        switch (studentProfiles.get(studentId)) {
+          case (null) { Runtime.trap("Student profile does not exist") };
+          case (?profile) {
+            studentProfiles.add(studentId, { profile with classLevel = newClassLevel; session = newSession });
+          };
+        };
+      };
+    };
+  };
+
+  // ===== SESSION-AWARE MARKS =====
+
+  public func saveSubjectMarksForSessionWithSession(sessionToken : Text, studentId : StudentId, session : Text, marks : [SubjectMarks]) : async () {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        let profile = studentProfiles.get(studentId);
+        if (not canModifyData(sessionInfo, profile)) { Runtime.trap("Unauthorized: You don't have permission to save marks for this student") };
+        let key = studentId # "|" # session;
+        sessionMarksStore.add(key, marks);
+      };
+    };
+  };
+
+  public query func getSubjectMarksForSessionWithSession(sessionToken : Text, studentId : StudentId, session : Text) : async [SubjectMarks] {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        let profile = studentProfiles.get(studentId);
+        if (not hasStudentPermission(sessionInfo, profile)) { Runtime.trap("Unauthorized: You don't have permission to view marks for this student") };
+        let key = studentId # "|" # session;
+        switch (sessionMarksStore.get(key)) { case (null) { [] }; case (?m) { m } };
+      };
+    };
+  };
+
+  public query func getStudentSessionListWithSession(sessionToken : Text, studentId : StudentId) : async [Text] {
+    switch (getSessionInfo(sessionToken)) {
+      case (null) { Runtime.trap("Unauthorized: Invalid session token") };
+      case (?sessionInfo) {
+        let profile = studentProfiles.get(studentId);
+        if (not hasStudentPermission(sessionInfo, profile)) { Runtime.trap("Unauthorized") };
+        let seen = Map.empty<Text, Bool>();
+        let att = switch (monthlyAttendance.get(studentId)) { case (null) { [] }; case (?a) { a } };
+        for (a in att.vals()) { seen.add(a.session, true) };
+        let sp = switch (sportsRecords.get(studentId)) { case (null) { [] }; case (?s) { s } };
+        for (s in sp.vals()) { seen.add(s.session, true) };
+        let ac = switch (activityRecords.get(studentId)) { case (null) { [] }; case (?a) { a } };
+        for (a in ac.vals()) { seen.add(a.session, true) };
+        let rc = switch (reportCards.get(studentId)) { case (null) { [] }; case (?r) { r } };
+        for (r in rc.vals()) { seen.add(r.session, true) };
+        seen.keys().toArray();
       };
     };
   };

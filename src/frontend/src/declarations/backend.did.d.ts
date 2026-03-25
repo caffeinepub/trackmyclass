@@ -192,6 +192,12 @@ export interface _SERVICE {
   'createUserAccount' : ActorMethod<[string, UserAccount], undefined>,
   'deleteCircular' : ActorMethod<[string, string], undefined>,
   'deleteClassStudyMaterial' : ActorMethod<[string, string], undefined>,
+  'promoteStudentWithSession' : ActorMethod<[string, StudentId, bigint, string], undefined>,
+  'setCurrentAppSessionWithSession' : ActorMethod<[string, string], undefined>,
+  'getCurrentAppSession' : ActorMethod<[], string>,
+  'saveSubjectMarksForSessionWithSession' : ActorMethod<[string, StudentId, string, Array<SubjectMarks>], undefined>,
+  'getSubjectMarksForSessionWithSession' : ActorMethod<[string, StudentId, string], Array<SubjectMarks>>,
+  'getStudentSessionListWithSession' : ActorMethod<[string, StudentId], Array<string>>,
   'deleteNotice' : ActorMethod<[string, string], undefined>,
   'deleteStudentProfileWithSession' : ActorMethod<
     [string, StudentId],
