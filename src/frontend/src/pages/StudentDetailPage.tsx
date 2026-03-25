@@ -46,6 +46,7 @@ import type {
   SubjectMarks,
   UpperClassMarks,
 } from "../backend.d";
+import { StudentAnalyticsTab } from "../components/StudentAnalyticsTab";
 import { useActor } from "../hooks/useActor";
 import { type AuthSession, canEdit } from "../hooks/useAuth";
 import {
@@ -2503,6 +2504,13 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
             >
               Report Card
             </TabsTrigger>
+            <TabsTrigger
+              value="analytics"
+              data-ocid="student_detail.analytics.tab"
+              className="data-[state=active]:bg-indigo-500 data-[state=active]:text-white"
+            >
+              Analytics
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
@@ -2528,6 +2536,13 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
               studentId={studentId}
               profile={profile}
               sportsRecords={sports ?? []}
+            />
+          </TabsContent>
+          <TabsContent value="analytics">
+            <StudentAnalyticsTab
+              studentId={studentId}
+              classLevel={classLevel}
+              sessionToken={session.sessionToken}
             />
           </TabsContent>
         </Tabs>
