@@ -93,6 +93,11 @@ export default function SettingsPage({ nav }: Props) {
 
   const handleLogoUpload = async (file: File, side: "left" | "right") => {
     if (!actor) return;
+    const sessionToken = nav.session?.sessionToken;
+    if (!sessionToken) {
+      toast.error("Not logged in. Please log in and try again.");
+      return;
+    }
     const key = side === "left" ? "school-logo-left" : "school-logo-right";
     if (side === "left") setUploadingLeft(true);
     else setUploadingRight(true);
@@ -100,13 +105,17 @@ export default function SettingsPage({ nav }: Props) {
       const buffer = await file.arrayBuffer();
       const bytes = new Uint8Array(buffer);
       const blob = ExternalBlob.fromBytes(bytes);
-      await actor.uploadStudyMaterial(
+      await actor.uploadStudyMaterialWithSession(
+        sessionToken,
         key,
         side === "left" ? "School Logo Left" : "School Logo Right",
         blob,
         `School logo ${side} side`,
       );
-      const material = await actor.getStudyMaterial(key);
+      const material = await actor.getStudyMaterialWithSession(
+        sessionToken,
+        key,
+      );
       if (material) {
         const url = material.blob.getDirectURL();
         if (side === "left") {
@@ -115,12 +124,26 @@ export default function SettingsPage({ nav }: Props) {
         } else {
           set("logoRightUrl", url);
         }
+        // Persist immediately so the URL survives a page reload
+        const updated = { ...getSchoolSettings() };
+        if (side === "left") {
+          updated.logoLeftUrl = url;
+          updated.logoUrl = url;
+        } else {
+          updated.logoRightUrl = url;
+        }
+        saveSchoolSettings(updated);
         toast.success(
           `${side === "left" ? "Left" : "Right"} logo uploaded successfully`,
         );
+      } else {
+        toast.error("Upload succeeded but could not retrieve logo URL.");
       }
-    } catch {
-      toast.error("Failed to upload logo");
+    } catch (err) {
+      console.error("Logo upload error:", err);
+      toast.error(
+        `Failed to upload logo: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       if (side === "left") setUploadingLeft(false);
       else setUploadingRight(false);
