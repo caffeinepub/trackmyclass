@@ -313,7 +313,16 @@ function ProfileTab({ profile }: { profile: StudentProfile }) {
             <Input
               data-ocid="profile.section.input"
               value={form.section}
-              onChange={(e) => set("section", e.target.value)}
+              onChange={(e) =>
+                set(
+                  "section",
+                  e.target.value
+                    .replace(/[^A-Za-z]/g, "")
+                    .slice(0, 1)
+                    .toUpperCase(),
+                )
+              }
+              maxLength={1}
               disabled={!isAdmin}
             />
           </Field>
@@ -321,7 +330,8 @@ function ProfileTab({ profile }: { profile: StudentProfile }) {
             <Input
               data-ocid="profile.rollno.input"
               value={form.rollNo}
-              onChange={(e) => set("rollNo", e.target.value)}
+              onChange={(e) => set("rollNo", e.target.value.replace(/\D/g, ""))}
+              inputMode="numeric"
               disabled={!isAdmin}
             />
           </Field>
@@ -348,9 +358,17 @@ function ProfileTab({ profile }: { profile: StudentProfile }) {
         <Field label="Date of Birth">
           <Input
             data-ocid="profile.dob.input"
-            type="date"
+            type="text"
+            placeholder="DD-MM-YYYY"
+            maxLength={10}
             value={form.dateOfBirth}
-            onChange={(e) => set("dateOfBirth", e.target.value)}
+            onChange={(e) => {
+              let v = e.target.value.replace(/[^\d]/g, "").slice(0, 8);
+              if (v.length > 4)
+                v = `${v.slice(0, 2)}-${v.slice(2, 4)}-${v.slice(4)}`;
+              else if (v.length > 2) v = `${v.slice(0, 2)}-${v.slice(2)}`;
+              set("dateOfBirth", v);
+            }}
             disabled={!isAdmin}
           />
         </Field>
@@ -441,7 +459,14 @@ function ProfileTab({ profile }: { profile: StudentProfile }) {
               data-ocid="profile.height_reopening.input"
               type="number"
               value={form.heightReopening || ""}
-              onChange={(e) => set("heightReopening", Number(e.target.value))}
+              onChange={(e) =>
+                set(
+                  "heightReopening",
+                  Math.min(999, Number(e.target.value.slice(0, 3))),
+                )
+              }
+              max={999}
+              maxLength={3}
               disabled={!isAdmin}
             />
           </Field>
@@ -450,7 +475,14 @@ function ProfileTab({ profile }: { profile: StudentProfile }) {
               data-ocid="profile.height_closure.input"
               type="number"
               value={form.heightClosure || ""}
-              onChange={(e) => set("heightClosure", Number(e.target.value))}
+              onChange={(e) =>
+                set(
+                  "heightClosure",
+                  Math.min(999, Number(e.target.value.slice(0, 3))),
+                )
+              }
+              max={999}
+              maxLength={3}
               disabled={!isAdmin}
             />
           </Field>
@@ -459,7 +491,14 @@ function ProfileTab({ profile }: { profile: StudentProfile }) {
               data-ocid="profile.weight_reopening.input"
               type="number"
               value={form.weightReopening || ""}
-              onChange={(e) => set("weightReopening", Number(e.target.value))}
+              onChange={(e) =>
+                set(
+                  "weightReopening",
+                  Math.min(99, Number(e.target.value.slice(0, 2))),
+                )
+              }
+              max={99}
+              maxLength={2}
               disabled={!isAdmin}
             />
           </Field>
@@ -468,9 +507,36 @@ function ProfileTab({ profile }: { profile: StudentProfile }) {
               data-ocid="profile.weight_closure.input"
               type="number"
               value={form.weightClosure || ""}
-              onChange={(e) => set("weightClosure", Number(e.target.value))}
+              onChange={(e) =>
+                set(
+                  "weightClosure",
+                  Math.min(99, Number(e.target.value.slice(0, 2))),
+                )
+              }
+              max={99}
+              maxLength={2}
               disabled={!isAdmin}
             />
+          </Field>
+          <Field label="Blood Group">
+            <Select
+              value={form.bloodGroup || ""}
+              onValueChange={(v) => set("bloodGroup", v)}
+              disabled={!isAdmin}
+            >
+              <SelectTrigger data-ocid="profile.blood_group.select">
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map(
+                  (bg) => (
+                    <SelectItem key={bg} value={bg}>
+                      {bg}
+                    </SelectItem>
+                  ),
+                )}
+              </SelectContent>
+            </Select>
           </Field>
         </div>
       </div>
@@ -629,7 +695,17 @@ function MarksTab({
           return false;
       } else if (m.__kind__ === "upperClass" && m.upperClass) {
         const uc = m.upperClass;
-        if (!uc.pt1 || !uc.pt2 || !uc.term1Exam || !uc.term2Exam) return false;
+        if (
+          !uc.pt1 ||
+          !uc.pt2 ||
+          !uc.term1Exam ||
+          !uc.term2Exam ||
+          !uc.nb1 ||
+          !uc.nb2 ||
+          !uc.se1 ||
+          !uc.se2
+        )
+          return false;
       }
     }
     return true;
@@ -2574,7 +2650,7 @@ export default function StudentDetailPage({ nav, studentId }: Props) {
 
   const classLevel = Number(profile.classLevel);
   const isAdmin = canEdit(session.role);
-  const isAdminOrDev = session.role === "developer" || session.role === "admin";
+  const isAdminOrDev = session.role === "developer";
   const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
 
   const handlePromote = async () => {

@@ -40,6 +40,7 @@ actor {
     weightReopening : Float;
     heightClosure : Float;
     weightClosure : Float;
+    bloodGroup : ?Text;
   };
 
   public type LowerClassMarks = {

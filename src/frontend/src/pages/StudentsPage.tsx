@@ -99,6 +99,7 @@ const EMPTY_PROFILE: StudentProfile = {
   pen: "",
   aadhar: "",
   religion: "",
+  bloodGroup: "",
   heightReopening: 0,
   weightReopening: 0,
   heightClosure: 0,
@@ -145,6 +146,14 @@ export default function StudentsPage({ nav }: Props) {
       filterClass === "all" || String(s.classLevel) === filterClass;
     return matchSearch && matchClass;
   });
+  const sortedFiltered =
+    filterClass !== "all"
+      ? [...filtered].sort((a, b) => {
+          const aNum = Number.parseInt(a.rollNo) || 0;
+          const bNum = Number.parseInt(b.rollNo) || 0;
+          return aNum - bNum;
+        })
+      : filtered;
 
   const handleSave = async () => {
     if (!form.studentId.trim() || !form.name.trim()) {
@@ -299,8 +308,17 @@ export default function StudentsPage({ nav }: Props) {
                   <Input
                     data-ocid="students.section.input"
                     value={form.section}
-                    onChange={(e) => set("section", e.target.value)}
-                    placeholder="A / B"
+                    onChange={(e) =>
+                      set(
+                        "section",
+                        e.target.value
+                          .replace(/[^A-Za-z]/g, "")
+                          .slice(0, 1)
+                          .toUpperCase(),
+                      )
+                    }
+                    maxLength={1}
+                    placeholder="A"
                     className="h-11"
                   />
                 </div>
@@ -309,7 +327,10 @@ export default function StudentsPage({ nav }: Props) {
                   <Input
                     data-ocid="students.rollno.input"
                     value={form.rollNo}
-                    onChange={(e) => set("rollNo", e.target.value)}
+                    onChange={(e) =>
+                      set("rollNo", e.target.value.replace(/\D/g, ""))
+                    }
+                    inputMode="numeric"
                     placeholder="1"
                     className="h-11"
                   />
@@ -337,9 +358,18 @@ export default function StudentsPage({ nav }: Props) {
                   <Label>Date of Birth</Label>
                   <Input
                     data-ocid="students.dob.input"
-                    type="date"
+                    type="text"
+                    placeholder="DD-MM-YYYY"
+                    maxLength={10}
                     value={form.dateOfBirth}
-                    onChange={(e) => set("dateOfBirth", e.target.value)}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/[^\d]/g, "").slice(0, 8);
+                      if (v.length > 4)
+                        v = `${v.slice(0, 2)}-${v.slice(2, 4)}-${v.slice(4)}`;
+                      else if (v.length > 2)
+                        v = `${v.slice(0, 2)}-${v.slice(2)}`;
+                      set("dateOfBirth", v);
+                    }}
                     className="h-11"
                   />
                 </div>
@@ -361,6 +391,29 @@ export default function StudentsPage({ nav }: Props) {
                     className="h-11"
                   />
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Blood Group</Label>
+                <Select
+                  value={form.bloodGroup || ""}
+                  onValueChange={(v) => set("bloodGroup", v)}
+                >
+                  <SelectTrigger
+                    data-ocid="students.blood_group.select"
+                    className="h-11"
+                  >
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map(
+                      (bg) => (
+                        <SelectItem key={bg} value={bg}>
+                          {bg}
+                        </SelectItem>
+                      ),
+                    )}
+                  </SelectContent>
+                </Select>
                 <div className="space-y-1.5">
                   <Label>Father&apos;s Name</Label>
                   <Input
@@ -497,7 +550,8 @@ export default function StudentsPage({ nav }: Props) {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">
-            {filtered.length} student{filtered.length !== 1 ? "s" : ""}
+            {sortedFiltered.length} student
+            {sortedFiltered.length !== 1 ? "s" : ""}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -507,7 +561,7 @@ export default function StudentsPage({ nav }: Props) {
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </div>
-          ) : filtered.length === 0 ? (
+          ) : sortedFiltered.length === 0 ? (
             <div
               className="flex flex-col items-center gap-3 py-12 text-center"
               data-ocid="students.empty_state"
@@ -522,7 +576,7 @@ export default function StudentsPage({ nav }: Props) {
             <>
               {/* Mobile: card list */}
               <div className="md:hidden divide-y divide-border">
-                {filtered.map((s, idx) => (
+                {sortedFiltered.map((s, idx) => (
                   <div
                     key={s.studentId}
                     data-ocid={`students.item.${idx + 1}`}
@@ -598,7 +652,7 @@ export default function StudentsPage({ nav }: Props) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((s, idx) => (
+                    {sortedFiltered.map((s, idx) => (
                       <TableRow
                         key={s.studentId}
                         data-ocid={`students.item.${idx + 1}`}

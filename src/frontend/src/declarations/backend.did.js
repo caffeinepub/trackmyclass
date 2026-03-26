@@ -19,6 +19,7 @@ export const _CaffeineStorageRefillResult = IDL.Record({
   'success' : IDL.Opt(IDL.Bool),
   'topped_up_amount' : IDL.Opt(IDL.Nat),
 });
+export const StudentId = IDL.Text;
 export const UserRole = IDL.Variant({
   'admin' : IDL.Null,
   'user' : IDL.Null,
@@ -31,30 +32,7 @@ export const UserAccount = IDL.Record({
   'role' : IDL.Text,
   'assignedClass' : IDL.Opt(IDL.Nat),
 });
-export const StudentId = IDL.Text;
 export const TeacherId = IDL.Text;
-export const TeacherProfile = IDL.Record({
-  'teacherId' : TeacherId,
-  'name' : IDL.Text,
-  'designation' : IDL.Text,
-  'subject' : IDL.Text,
-  'gender' : IDL.Text,
-  'dateOfBirth' : IDL.Text,
-  'joiningDate' : IDL.Text,
-  'contact' : IDL.Text,
-  'email' : IDL.Text,
-  'address' : IDL.Text,
-  'photoUrl' : IDL.Text,
-});
-export const TeacherMonthlyAttendance = IDL.Record({
-  'teacherId' : TeacherId,
-  'session' : IDL.Text,
-  'month' : IDL.Text,
-  'present' : IDL.Nat,
-  'casualLeave' : IDL.Nat,
-  'extraordinaryLeave' : IDL.Nat,
-  'totalWorkingDays' : IDL.Nat,
-});
 export const ActivityRecord = IDL.Record({
   'activityType' : IDL.Text,
   'studentId' : StudentId,
@@ -143,6 +121,7 @@ export const StudentProfile = IDL.Record({
   'weightClosure' : IDL.Float64,
   'session' : IDL.Text,
   'fatherName' : IDL.Text,
+  'bloodGroup' : IDL.Opt(IDL.Text),
   'address' : IDL.Text,
   'gender' : IDL.Text,
   'classLevel' : IDL.Nat,
@@ -162,6 +141,28 @@ export const StudyMaterial = IDL.Record({
   'name' : IDL.Text,
   'comments' : IDL.Text,
   'uploadedBy' : IDL.Principal,
+});
+export const TeacherMonthlyAttendance = IDL.Record({
+  'month' : IDL.Text,
+  'present' : IDL.Nat,
+  'casualLeave' : IDL.Nat,
+  'session' : IDL.Text,
+  'teacherId' : TeacherId,
+  'totalWorkingDays' : IDL.Nat,
+  'extraordinaryLeave' : IDL.Nat,
+});
+export const TeacherProfile = IDL.Record({
+  'contact' : IDL.Text,
+  'subject' : IDL.Text,
+  'dateOfBirth' : IDL.Text,
+  'name' : IDL.Text,
+  'designation' : IDL.Text,
+  'joiningDate' : IDL.Text,
+  'photoUrl' : IDL.Text,
+  'email' : IDL.Text,
+  'address' : IDL.Text,
+  'gender' : IDL.Text,
+  'teacherId' : TeacherId,
 });
 export const Circular = IDL.Record({
   'id' : IDL.Text,
@@ -228,21 +229,29 @@ export const idlService = IDL.Service({
     ),
   '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'archiveStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'createUserAccount' : IDL.Func([IDL.Text, UserAccount], [], []),
+  'deleteActivityRecordWithSession' : IDL.Func(
+      [IDL.Text, StudentId, IDL.Nat],
+      [],
+      [],
+    ),
+  'deleteAttendanceRecordWithSession' : IDL.Func(
+      [IDL.Text, StudentId, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
   'deleteCircular' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'deleteClassStudyMaterial' : IDL.Func([IDL.Text, IDL.Text], [], []),
-  'promoteStudentWithSession' : IDL.Func([IDL.Text, StudentId, IDL.Nat, IDL.Text], [], []),
-  'setCurrentAppSessionWithSession' : IDL.Func([IDL.Text, IDL.Text], [], []),
-  'getCurrentAppSession' : IDL.Func([], [IDL.Text], ['query']),
-  'saveSubjectMarksForSessionWithSession' : IDL.Func([IDL.Text, StudentId, IDL.Text, IDL.Vec(SubjectMarks)], [], []),
-  'getSubjectMarksForSessionWithSession' : IDL.Func([IDL.Text, StudentId, IDL.Text], [IDL.Vec(SubjectMarks)], ['query']),
-  'getStudentSessionListWithSession' : IDL.Func([IDL.Text, StudentId], [IDL.Vec(IDL.Text)], ['query']),
   'deleteNotice' : IDL.Func([IDL.Text, IDL.Text], [], []),
+  'deleteSportsRecordWithSession' : IDL.Func(
+      [IDL.Text, StudentId, IDL.Text],
+      [],
+      [],
+    ),
   'deleteStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
-  'archiveStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
-  'restoreStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
-  'listArchivedStudentProfilesWithSession' : IDL.Func([IDL.Text], [IDL.Vec(StudentProfile)], ['query']),
+  'deleteTeacherProfileWithSession' : IDL.Func([IDL.Text, TeacherId], [], []),
   'deleteUserAccount' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'getActivityRecords' : IDL.Func(
       [StudentId],
@@ -284,6 +293,7 @@ export const idlService = IDL.Service({
     ),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+  'getCurrentAppSession' : IDL.Func([], [IDL.Text], ['query']),
   'getMonthlyAttendance' : IDL.Func(
       [StudentId],
       [IDL.Vec(MonthlyAttendance)],
@@ -316,6 +326,11 @@ export const idlService = IDL.Service({
       [StudentProfile],
       ['query'],
     ),
+  'getStudentSessionListWithSession' : IDL.Func(
+      [IDL.Text, StudentId],
+      [IDL.Vec(IDL.Text)],
+      ['query'],
+    ),
   'getStudentsByClass' : IDL.Func(
       [IDL.Nat],
       [IDL.Vec(StudentProfile)],
@@ -337,9 +352,24 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'getSubjectMarks' : IDL.Func([StudentId], [IDL.Vec(SubjectMarks)], ['query']),
+  'getSubjectMarksForSessionWithSession' : IDL.Func(
+      [IDL.Text, StudentId, IDL.Text],
+      [IDL.Vec(SubjectMarks)],
+      ['query'],
+    ),
   'getSubjectMarksWithSession' : IDL.Func(
       [IDL.Text, StudentId],
       [IDL.Vec(SubjectMarks)],
+      ['query'],
+    ),
+  'getTeacherAttendanceWithSession' : IDL.Func(
+      [IDL.Text, TeacherId, IDL.Text],
+      [IDL.Vec(TeacherMonthlyAttendance)],
+      ['query'],
+    ),
+  'getTeacherProfileWithSession' : IDL.Func(
+      [IDL.Text, TeacherId],
+      [TeacherProfile],
       ['query'],
     ),
   'getUserProfile' : IDL.Func(
@@ -355,6 +385,16 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'listAllStudyMaterials' : IDL.Func([], [IDL.Vec(StudyMaterial)], ['query']),
+  'listAllTeacherProfilesWithSession' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(TeacherProfile)],
+      ['query'],
+    ),
+  'listArchivedStudentProfilesWithSession' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(StudentProfile)],
+      ['query'],
+    ),
   'listCirculars' : IDL.Func([IDL.Text], [IDL.Vec(Circular)], ['query']),
   'listClassStudyMaterials' : IDL.Func(
       [IDL.Text],
@@ -397,6 +437,12 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
+  'promoteStudentWithSession' : IDL.Func(
+      [IDL.Text, StudentId, IDL.Nat, IDL.Text],
+      [],
+      [],
+    ),
+  'restoreStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
   'saveActivityRecord' : IDL.Func([StudentId, ActivityRecord], [], []),
   'saveActivityRecordWithSession' : IDL.Func(
       [IDL.Text, StudentId, ActivityRecord],
@@ -429,8 +475,23 @@ export const idlService = IDL.Service({
       [],
     ),
   'saveSubjectMarks' : IDL.Func([StudentId, IDL.Vec(SubjectMarks)], [], []),
+  'saveSubjectMarksForSessionWithSession' : IDL.Func(
+      [IDL.Text, StudentId, IDL.Text, IDL.Vec(SubjectMarks)],
+      [],
+      [],
+    ),
   'saveSubjectMarksWithSession' : IDL.Func(
       [IDL.Text, StudentId, IDL.Vec(SubjectMarks)],
+      [],
+      [],
+    ),
+  'saveTeacherAttendanceWithSession' : IDL.Func(
+      [IDL.Text, TeacherMonthlyAttendance],
+      [],
+      [],
+    ),
+  'saveTeacherProfileWithSession' : IDL.Func(
+      [IDL.Text, TeacherProfile],
       [],
       [],
     ),
@@ -440,11 +501,18 @@ export const idlService = IDL.Service({
       [IDL.Vec(StudentProfile)],
       ['query'],
     ),
+  'setCurrentAppSessionWithSession' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'setStudentIdForUserProfile' : IDL.Func([IDL.Text], [], []),
-  'deleteSportsRecordWithSession' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
-  'deleteActivityRecordWithSession' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
-  'updateSportsRecordWithSession' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, SportsRecord], [], []),
-  'updateActivityRecordWithSession' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat, ActivityRecord], [], []),
+  'updateActivityRecordWithSession' : IDL.Func(
+      [IDL.Text, StudentId, IDL.Nat, ActivityRecord],
+      [],
+      [],
+    ),
+  'updateSportsRecordWithSession' : IDL.Func(
+      [IDL.Text, StudentId, IDL.Text, SportsRecord],
+      [],
+      [],
+    ),
   'updateUserPassword' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'uploadCircular' : IDL.Func(
       [
@@ -501,6 +569,7 @@ export const idlFactory = ({ IDL }) => {
     'success' : IDL.Opt(IDL.Bool),
     'topped_up_amount' : IDL.Opt(IDL.Nat),
   });
+  const StudentId = IDL.Text;
   const UserRole = IDL.Variant({
     'admin' : IDL.Null,
     'user' : IDL.Null,
@@ -513,7 +582,7 @@ export const idlFactory = ({ IDL }) => {
     'role' : IDL.Text,
     'assignedClass' : IDL.Opt(IDL.Nat),
   });
-  const StudentId = IDL.Text;
+  const TeacherId = IDL.Text;
   const ActivityRecord = IDL.Record({
     'activityType' : IDL.Text,
     'studentId' : StudentId,
@@ -602,6 +671,7 @@ export const idlFactory = ({ IDL }) => {
     'weightClosure' : IDL.Float64,
     'session' : IDL.Text,
     'fatherName' : IDL.Text,
+    'bloodGroup' : IDL.Opt(IDL.Text),
     'address' : IDL.Text,
     'gender' : IDL.Text,
     'classLevel' : IDL.Nat,
@@ -621,6 +691,28 @@ export const idlFactory = ({ IDL }) => {
     'name' : IDL.Text,
     'comments' : IDL.Text,
     'uploadedBy' : IDL.Principal,
+  });
+  const TeacherMonthlyAttendance = IDL.Record({
+    'month' : IDL.Text,
+    'present' : IDL.Nat,
+    'casualLeave' : IDL.Nat,
+    'session' : IDL.Text,
+    'teacherId' : TeacherId,
+    'totalWorkingDays' : IDL.Nat,
+    'extraordinaryLeave' : IDL.Nat,
+  });
+  const TeacherProfile = IDL.Record({
+    'contact' : IDL.Text,
+    'subject' : IDL.Text,
+    'dateOfBirth' : IDL.Text,
+    'name' : IDL.Text,
+    'designation' : IDL.Text,
+    'joiningDate' : IDL.Text,
+    'photoUrl' : IDL.Text,
+    'email' : IDL.Text,
+    'address' : IDL.Text,
+    'gender' : IDL.Text,
+    'teacherId' : TeacherId,
   });
   const Circular = IDL.Record({
     'id' : IDL.Text,
@@ -687,21 +779,33 @@ export const idlFactory = ({ IDL }) => {
       ),
     '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'archiveStudentProfileWithSession' : IDL.Func(
+        [IDL.Text, StudentId],
+        [],
+        [],
+      ),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'createUserAccount' : IDL.Func([IDL.Text, UserAccount], [], []),
+    'deleteActivityRecordWithSession' : IDL.Func(
+        [IDL.Text, StudentId, IDL.Nat],
+        [],
+        [],
+      ),
+    'deleteAttendanceRecordWithSession' : IDL.Func(
+        [IDL.Text, StudentId, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
     'deleteCircular' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'deleteClassStudyMaterial' : IDL.Func([IDL.Text, IDL.Text], [], []),
-    'promoteStudentWithSession' : IDL.Func([IDL.Text, StudentId, IDL.Nat, IDL.Text], [], []),
-  'setCurrentAppSessionWithSession' : IDL.Func([IDL.Text, IDL.Text], [], []),
-  'getCurrentAppSession' : IDL.Func([], [IDL.Text], ['query']),
-  'saveSubjectMarksForSessionWithSession' : IDL.Func([IDL.Text, StudentId, IDL.Text, IDL.Vec(SubjectMarks)], [], []),
-  'getSubjectMarksForSessionWithSession' : IDL.Func([IDL.Text, StudentId, IDL.Text], [IDL.Vec(SubjectMarks)], ['query']),
-  'getStudentSessionListWithSession' : IDL.Func([IDL.Text, StudentId], [IDL.Vec(IDL.Text)], ['query']),
-  'deleteNotice' : IDL.Func([IDL.Text, IDL.Text], [], []),
+    'deleteNotice' : IDL.Func([IDL.Text, IDL.Text], [], []),
+    'deleteSportsRecordWithSession' : IDL.Func(
+        [IDL.Text, StudentId, IDL.Text],
+        [],
+        [],
+      ),
     'deleteStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
-    'archiveStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
-    'restoreStudentProfileWithSession' : IDL.Func([IDL.Text, StudentId], [], []),
-    'listArchivedStudentProfilesWithSession' : IDL.Func([IDL.Text], [IDL.Vec(StudentProfile)], ['query']),
+    'deleteTeacherProfileWithSession' : IDL.Func([IDL.Text, TeacherId], [], []),
     'deleteUserAccount' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'getActivityRecords' : IDL.Func(
         [StudentId],
@@ -743,6 +847,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+    'getCurrentAppSession' : IDL.Func([], [IDL.Text], ['query']),
     'getMonthlyAttendance' : IDL.Func(
         [StudentId],
         [IDL.Vec(MonthlyAttendance)],
@@ -775,6 +880,11 @@ export const idlFactory = ({ IDL }) => {
         [StudentProfile],
         ['query'],
       ),
+    'getStudentSessionListWithSession' : IDL.Func(
+        [IDL.Text, StudentId],
+        [IDL.Vec(IDL.Text)],
+        ['query'],
+      ),
     'getStudentsByClass' : IDL.Func(
         [IDL.Nat],
         [IDL.Vec(StudentProfile)],
@@ -800,9 +910,24 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(SubjectMarks)],
         ['query'],
       ),
+    'getSubjectMarksForSessionWithSession' : IDL.Func(
+        [IDL.Text, StudentId, IDL.Text],
+        [IDL.Vec(SubjectMarks)],
+        ['query'],
+      ),
     'getSubjectMarksWithSession' : IDL.Func(
         [IDL.Text, StudentId],
         [IDL.Vec(SubjectMarks)],
+        ['query'],
+      ),
+    'getTeacherAttendanceWithSession' : IDL.Func(
+        [IDL.Text, TeacherId, IDL.Text],
+        [IDL.Vec(TeacherMonthlyAttendance)],
+        ['query'],
+      ),
+    'getTeacherProfileWithSession' : IDL.Func(
+        [IDL.Text, TeacherId],
+        [TeacherProfile],
         ['query'],
       ),
     'getUserProfile' : IDL.Func(
@@ -822,6 +947,16 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'listAllStudyMaterials' : IDL.Func([], [IDL.Vec(StudyMaterial)], ['query']),
+    'listAllTeacherProfilesWithSession' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(TeacherProfile)],
+        ['query'],
+      ),
+    'listArchivedStudentProfilesWithSession' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(StudentProfile)],
+        ['query'],
+      ),
     'listCirculars' : IDL.Func([IDL.Text], [IDL.Vec(Circular)], ['query']),
     'listClassStudyMaterials' : IDL.Func(
         [IDL.Text],
@@ -868,6 +1003,16 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'promoteStudentWithSession' : IDL.Func(
+        [IDL.Text, StudentId, IDL.Nat, IDL.Text],
+        [],
+        [],
+      ),
+    'restoreStudentProfileWithSession' : IDL.Func(
+        [IDL.Text, StudentId],
+        [],
+        [],
+      ),
     'saveActivityRecord' : IDL.Func([StudentId, ActivityRecord], [], []),
     'saveActivityRecordWithSession' : IDL.Func(
         [IDL.Text, StudentId, ActivityRecord],
@@ -900,8 +1045,23 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'saveSubjectMarks' : IDL.Func([StudentId, IDL.Vec(SubjectMarks)], [], []),
+    'saveSubjectMarksForSessionWithSession' : IDL.Func(
+        [IDL.Text, StudentId, IDL.Text, IDL.Vec(SubjectMarks)],
+        [],
+        [],
+      ),
     'saveSubjectMarksWithSession' : IDL.Func(
         [IDL.Text, StudentId, IDL.Vec(SubjectMarks)],
+        [],
+        [],
+      ),
+    'saveTeacherAttendanceWithSession' : IDL.Func(
+        [IDL.Text, TeacherMonthlyAttendance],
+        [],
+        [],
+      ),
+    'saveTeacherProfileWithSession' : IDL.Func(
+        [IDL.Text, TeacherProfile],
         [],
         [],
       ),
@@ -915,11 +1075,18 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(StudentProfile)],
         ['query'],
       ),
+    'setCurrentAppSessionWithSession' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'setStudentIdForUserProfile' : IDL.Func([IDL.Text], [], []),
-    'deleteSportsRecordWithSession' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
-    'deleteActivityRecordWithSession' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
-    'updateSportsRecordWithSession' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, SportsRecord], [], []),
-    'updateActivityRecordWithSession' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat, ActivityRecord], [], []),
+    'updateActivityRecordWithSession' : IDL.Func(
+        [IDL.Text, StudentId, IDL.Nat, ActivityRecord],
+        [],
+        [],
+      ),
+    'updateSportsRecordWithSession' : IDL.Func(
+        [IDL.Text, StudentId, IDL.Text, SportsRecord],
+        [],
+        [],
+      ),
     'updateUserPassword' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'uploadCircular' : IDL.Func(
         [
@@ -959,12 +1126,6 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
-    'saveTeacherProfileWithSession' : IDL.Func([IDL.Text, TeacherProfile], [], []),
-    'getTeacherProfileWithSession' : IDL.Func([IDL.Text, TeacherId], [TeacherProfile], ['query']),
-    'listAllTeacherProfilesWithSession' : IDL.Func([IDL.Text], [IDL.Vec(TeacherProfile)], ['query']),
-    'deleteTeacherProfileWithSession' : IDL.Func([IDL.Text, TeacherId], [], []),
-    'saveTeacherAttendanceWithSession' : IDL.Func([IDL.Text, TeacherMonthlyAttendance], [], []),
-    'getTeacherAttendanceWithSession' : IDL.Func([IDL.Text, TeacherId, IDL.Text], [IDL.Vec(TeacherMonthlyAttendance)], ['query']),
     'validateSession' : IDL.Func([IDL.Text], [IDL.Opt(SessionInfo)], ['query']),
   });
 };
